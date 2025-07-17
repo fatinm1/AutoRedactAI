@@ -1,0 +1,164 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: autoredact-postgres
+    environment:
+      POSTGRES_DB: autoredact
+      POSTGRES_USER: autoredact
+      POSTGRES_PASSWORD: autoredact123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - autoredact-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autoredact"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: autoredact-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - autoredact-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: autoredact-backend
+    environment:
+      - DATABASE_URL=postgresql://autoredact:autoredact123@postgres:5432/autoredact
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=development
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-autoredact-dev}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/venv
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - autoredact-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: autoredact-celery-worker
+    environment:
+      - DATABASE_URL=postgresql://autoredact:autoredact123@postgres:5432/autoredact
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=development
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-autoredact-dev}
+    volumes:
+      - ./backend:/app
+      - /app/venv
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - autoredact-network
+    command: celery -A app.celery worker --loglevel=info
+
+  # Celery Beat (for scheduled tasks)
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: autoredact-celery-beat
+    environment:
+      - DATABASE_URL=postgresql://autoredact:autoredact123@postgres:5432/autoredact
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=development
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET:-autoredact-dev}
+    volumes:
+      - ./backend:/app
+      - /app/venv
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - autoredact-network
+    command: celery -A app.celery beat --loglevel=info
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: autoredact-frontend
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_WS_URL=ws://localhost:8000/ws
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - autoredact-network
+    command: npm run dev
+
+  # Nginx (for production-like setup)
+  nginx:
+    image: nginx:alpine
+    container_name: autoredact-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - autoredact-network
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  autoredact-network:
+    driver: bridge 
