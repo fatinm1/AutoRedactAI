@@ -8,7 +8,6 @@ import toast from 'react-hot-toast';
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
     email: '',
-    username: '',
     password: '',
     confirmPassword: '',
     fullName: ''
@@ -38,14 +37,9 @@ const Register: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await register({
-        email: formData.email,
-        username: formData.username,
-        password: formData.password,
-        full_name: formData.fullName
-      });
+      await register(formData.email, formData.fullName, formData.password);
       toast.success('Account created successfully!');
-      navigate('/login');
+      navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
@@ -96,25 +90,9 @@ const Register: React.FC = () => {
                 type="text"
                 value={formData.fullName}
                 onChange={handleChange}
-                className="input"
-                placeholder="Enter your full name"
-              />
-            </div>
-
-            {/* Username */}
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                value={formData.username}
-                onChange={handleChange}
                 required
                 className="input"
-                placeholder="Choose a username"
+                placeholder="Enter your full name"
               />
             </div>
 

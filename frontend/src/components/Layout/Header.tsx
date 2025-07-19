@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Bell, 
@@ -18,6 +18,7 @@ const Header: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -28,6 +29,20 @@ const Header: React.FC = () => {
     logout();
     setIsUserMenuOpen(false);
   };
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   return (
     <header className="px-6 py-4">
@@ -79,8 +94,19 @@ const Header: React.FC = () => {
             )}
           </motion.button>
 
+          {/* Quick Logout Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleLogout}
+            className="flex items-center space-x-2 px-3 py-2 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors text-sm font-medium"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Logout</span>
+          </motion.button>
+
           {/* User menu */}
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

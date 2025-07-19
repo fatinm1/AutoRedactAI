@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseSettings, validator
+from pydantic_settings import BaseSettings
 import os
 
 
@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # Database
-    DATABASE_URL: str = "postgresql://user:password@localhost/autoredact"
+    DATABASE_URL: str = "sqlite:///./autoredact.db"
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
     
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     
     # File Processing
     MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
-    ALLOWED_FILE_TYPES: List[str] = [".pdf", ".docx", ".txt"]
+    ALLOWED_FILE_TYPES: str = ".pdf,.docx,.txt"
     FILE_RETENTION_DAYS: int = 7
     
     # AI/ML Models
@@ -47,18 +47,14 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-3.5-turbo"
     
     # CORS
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://autoredact.ai"
-    ]
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
     
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 100
     RATE_LIMIT_PER_HOUR: int = 1000
     
     # Trusted Hosts
-    ALLOWED_HOSTS: List[str] = ["*"]
+    ALLOWED_HOSTS: str = "localhost,127.0.0.1,*"
     
     # Monitoring
     SENTRY_DSN: Optional[str] = None
@@ -68,25 +64,11 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
     
-    @validator("ALLOWED_HOSTS", pre=True)
-    def assemble_allowed_hosts(cls, v):
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
-    
-    @validator("ALLOWED_ORIGINS", pre=True)
-    def assemble_allowed_origins(cls, v):
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "ignore"
+    }
 
 
 # Create settings instance
@@ -95,10 +77,7 @@ settings = Settings()
 # Environment-specific overrides
 if settings.ENVIRONMENT == "production":
     settings.DEBUG = False
-    settings.ALLOWED_HOSTS = ["autoredact.ai", "api.autoredact.ai"]
 elif settings.ENVIRONMENT == "staging":
     settings.DEBUG = True
-    settings.ALLOWED_HOSTS = ["staging.autoredact.ai"]
 else:  # development
-    settings.DEBUG = True
-    settings.ALLOWED_HOSTS = ["localhost", "127.0.0.1", "*"] 
+    settings.DEBUG = True 

@@ -13,7 +13,7 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -41,14 +41,14 @@ api.interceptors.response.use(
           });
 
           const { access_token } = response.data;
-          localStorage.setItem('access_token', access_token);
+          localStorage.setItem('token', access_token);
 
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
         // Refresh failed, redirect to login
-        localStorage.removeItem('access_token');
+        localStorage.removeItem('token');
         localStorage.removeItem('refresh_token');
         window.location.href = '/login';
       }
@@ -65,39 +65,40 @@ export interface LoginCredentials {
 
 export interface RegisterData {
   email: string;
-  username: string;
+  full_name: string;
   password: string;
-  full_name?: string;
 }
 
 export interface User {
   id: string;
   email: string;
-  username: string;
-  full_name?: string;
-  role: string;
+  full_name: string;
   is_active: boolean;
-  is_verified: boolean;
 }
 
 export interface AuthResponse {
   access_token: string;
-  refresh_token: string;
   token_type: string;
-  expires_in: number;
+  user: User;
 }
 
 export const authService = {
   // Login user
   async login(email: string, password: string): Promise<AuthResponse> {
     const response = await api.post('/auth/login', { email, password });
-    return response.data;
+    const data = response.data;
+    // Store token
+    localStorage.setItem('token', data.access_token);
+    return data;
   },
 
   // Register user
-  async register(userData: RegisterData): Promise<User> {
+  async register(userData: RegisterData): Promise<AuthResponse> {
     const response = await api.post('/auth/register', userData);
-    return response.data;
+    const data = response.data;
+    // Store token
+    localStorage.setItem('token', data.access_token);
+    return data;
   },
 
   // Get current user
@@ -109,7 +110,9 @@ export const authService = {
   // Refresh token
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
     const response = await api.post('/auth/refresh', { refresh_token: refreshToken });
-    return response.data;
+    const data = response.data;
+    localStorage.setItem('token', data.access_token);
+    return data;
   },
 
   // Logout user
@@ -120,17 +123,18 @@ export const authService = {
       // Even if logout fails, clear local storage
       console.warn('Logout request failed, but clearing local storage');
     } finally {
-      localStorage.removeItem('access_token');
+      localStorage.removeItem('token');
       localStorage.removeItem('refresh_token');
     }
   },
 
-  // Change password
-  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    const response = await api.post('/auth/change-password', {
-      current_password: currentPassword,
-      new_password: newPassword,
-    });
-    return response.data;
+  // Check if user is authenticated
+  isAuthenticated(): boolean {
+    return !!localStorage.getItem('token');
   },
+
+  // Get stored token
+  getToken(): string | null {
+    return localStorage.getItem('token');
+  }
 }; 

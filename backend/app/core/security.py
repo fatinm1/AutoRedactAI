@@ -18,7 +18,15 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 # Redis connection for rate limiting
-redis_client = redis.from_url(settings.REDIS_URL)
+try:
+    redis_client = redis.from_url(settings.REDIS_URL)
+    # Test the connection
+    redis_client.ping()
+    REDIS_AVAILABLE = True
+except Exception as e:
+    logger.warning("Redis not available, rate limiting disabled", error=str(e))
+    redis_client = None
+    REDIS_AVAILABLE = False
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -87,6 +95,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = security)
 
 async def rate_limit_middleware(request: Request, call_next):
     """Rate limiting middleware."""
+    # Skip rate limiting if Redis is not available
+    if not REDIS_AVAILABLE:
+        return await call_next(request)
+    
     client_ip = request.client.host
     user_agent = request.headers.get("user-agent", "")
     
