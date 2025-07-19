@@ -18,14 +18,8 @@ from sklearn.preprocessing import StandardScaler
 import xgboost as xgb
 import lightgbm as lgb
 from catboost import CatBoostClassifier
-import optuna
 from sentence_transformers import SentenceTransformer
 import textblob
-from gensim.models import Word2Vec
-import fasttext
-import cv2
-import pytesseract
-import easyocr
 from llama_cpp import Llama
 import joblib
 from pathlib import Path
@@ -178,13 +172,13 @@ class AdvancedAIService:
         """Initialize Computer Vision models for document image processing"""
         try:
             # 1. EasyOCR for text extraction from images
-            self.easyocr_reader = easyocr.Reader(['en'])
+            self.easyocr_reader = None # Removed easyocr import, so set to None
             
             # 2. Tesseract for OCR
-            self.tesseract_available = True
+            self.tesseract_available = False # Removed pytesseract import, so set to False
             
             # 3. OpenCV for image preprocessing
-            self.cv_available = True
+            self.cv_available = False # Removed cv2 import, so set to False
             
             logger.info("Computer Vision models initialized successfully")
             
@@ -889,14 +883,34 @@ Format your response as JSON:
         Advanced AI-powered document processing
         """
         try:
+            logger.info(f"Processing document: {filename} ({len(file_content)} bytes)")
+            
             # Extract text from document
             text = self.extract_text_from_document(file_content, filename)
+            
+            logger.info(f"Extracted text length: {len(text)} characters")
+            logger.info(f"Text preview: {text[:200]}...")
+            
+            # Check if we got actual content or error message
+            if text.startswith("Failed to extract") or text.startswith("PDF processing error") or text.startswith("Word document processing error"):
+                logger.error(f"Text extraction failed for {filename}: {text}")
+                return {
+                    'original_text': text,
+                    'redacted_text': text,
+                    'redactions': [],
+                    'redactions_count': 0,
+                    'ai_models_used': [],
+                    'processing_method': 'error',
+                    'error': text
+                }
             
             # Advanced AI-powered entity detection
             redactions = self.detect_sensitive_entities_advanced(text)
             
             # Apply redactions
             redacted_text = self.apply_redactions(text, redactions)
+            
+            logger.info(f"Processing completed: {len(redactions)} entities detected")
             
             return {
                 'original_text': text,
@@ -925,91 +939,128 @@ Format your response as JSON:
             return file_content.decode('utf-8', errors='ignore')
     
     def _extract_pdf_text(self, file_content: bytes) -> str:
-        """Extract text from PDF with OCR fallback"""
+        """Extract text from PDF with better error handling"""
         try:
             import PyPDF2
             import pdfplumber
+            import io
+            
+            # Validate PDF header
+            if not file_content.startswith(b'%PDF'):
+                logger.error("File does not have valid PDF header")
+                return "Invalid PDF file: File does not appear to be a valid PDF document"
+            
+            # Check file size
+            if len(file_content) < 100:
+                logger.error("PDF file is too small")
+                return "Invalid PDF file: File is too small to be a valid PDF"
+            
+            # Convert bytes to BytesIO for PDF libraries
+            file_stream = io.BytesIO(file_content)
             
             # Try pdfplumber first (better text extraction)
             try:
-                with pdfplumber.open(file_content) as pdf:
+                with pdfplumber.open(file_stream) as pdf:
+                    # Check if PDF has pages
+                    if len(pdf.pages) == 0:
+                        logger.warning("PDF has no pages")
+                        return "PDF appears to be empty (no pages found)"
+                    
                     text = ""
-                    for page in pdf.pages:
+                    for i, page in enumerate(pdf.pages):
                         page_text = page.extract_text()
                         if page_text:
                             text += page_text + "\n"
-                    return text if text.strip() else self._simulate_pdf_text()
-            except:
-                pass
+                        else:
+                            logger.warning(f"Page {i+1} has no extractable text (might be image-based)")
+                    
+                    if text.strip():
+                        logger.info(f"Successfully extracted {len(text)} characters from PDF using pdfplumber")
+                        return text
+                    else:
+                        logger.warning("PDF text extraction returned empty content - likely image-based PDF")
+                        return "PDF appears to contain only images or scanned content. OCR is required for text extraction."
+            except Exception as e:
+                logger.warning(f"pdfplumber extraction failed: {str(e)}")
+            
+            # Reset stream for PyPDF2
+            file_stream.seek(0)
             
             # Fallback to PyPDF2
             try:
-                pdf_reader = PyPDF2.PdfReader(file_content)
+                pdf_reader = PyPDF2.PdfReader(file_stream)
+                
+                # Check if PDF is encrypted
+                if pdf_reader.is_encrypted:
+                    logger.error("PDF is password-protected")
+                    return "PDF is password-protected. Please provide the password or use an unencrypted version."
+                
+                # Check if PDF has pages
+                if len(pdf_reader.pages) == 0:
+                    logger.warning("PDF has no pages")
+                    return "PDF appears to be empty (no pages found)"
+                
                 text = ""
-                for page in pdf_reader.pages:
-                    text += page.extract_text() + "\n"
-                return text if text.strip() else self._simulate_pdf_text()
-            except:
-                pass
+                for i, page in enumerate(pdf_reader.pages):
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+                    else:
+                        logger.warning(f"Page {i+1} has no extractable text")
+                
+                if text.strip():
+                    logger.info(f"Successfully extracted {len(text)} characters from PDF using PyPDF2")
+                    return text
+                else:
+                    logger.warning("PyPDF2 text extraction returned empty content")
+                    return "PDF appears to contain only images or scanned content. OCR is required for text extraction."
+            except Exception as e:
+                logger.warning(f"PyPDF2 extraction failed: {str(e)}")
             
-            # Final fallback to simulation
-            return self._simulate_pdf_text()
+            # If both methods fail, provide detailed error message
+            logger.error("Both PDF text extraction methods failed")
+            return "Failed to extract text from PDF. Possible reasons:\n" + \
+                   "1. PDF is corrupted or damaged\n" + \
+                   "2. PDF contains only scanned images (needs OCR)\n" + \
+                   "3. PDF is password-protected\n" + \
+                   "4. File is not actually a PDF despite extension"
             
         except Exception as e:
             logger.error(f"PDF text extraction failed: {str(e)}")
-            return self._simulate_pdf_text()
+            return f"PDF processing error: {str(e)}"
     
     def _extract_doc_text(self, file_content: bytes) -> str:
-        """Extract text from Word documents"""
+        """Extract text from Word documents with better error handling"""
         try:
             from docx import Document
             import io
             
-            doc = Document(io.BytesIO(file_content))
+            # Convert bytes to BytesIO for docx library
+            file_stream = io.BytesIO(file_content)
+            
+            doc = Document(file_stream)
             text = ""
             for paragraph in doc.paragraphs:
                 text += paragraph.text + "\n"
-            return text if text.strip() else self._simulate_doc_text()
+            
+            if text.strip():
+                logger.info(f"Successfully extracted {len(text)} characters from Word document")
+                return text
+            else:
+                logger.warning("Word document text extraction returned empty content")
+                return "Word document appears to be empty or contains no extractable text"
             
         except Exception as e:
             logger.error(f"DOC text extraction failed: {str(e)}")
-            return self._simulate_doc_text()
+            return f"Word document processing error: {str(e)}"
     
     def _extract_image_text(self, file_content: bytes) -> str:
-        """Extract text from images using OCR"""
+        """Extract text from images using OCR (simplified version without cv2)"""
         try:
-            import cv2
-            import numpy as np
-            
-            # Convert bytes to image
-            nparr = np.frombuffer(file_content, np.uint8)
-            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            
-            # Preprocess image
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-            
-            # Try EasyOCR first
-            if self.easyocr_reader:
-                try:
-                    results = self.easyocr_reader.readtext(thresh)
-                    text = " ".join([result[1] for result in results])
-                    if text.strip():
-                        return text
-                except:
-                    pass
-            
-            # Fallback to Tesseract
-            if self.tesseract_available:
-                try:
-                    text = pytesseract.image_to_string(thresh)
-                    if text.strip():
-                        return text
-                except:
-                    pass
-            
-            # Final fallback
-            return "Image text extraction failed"
+            # Since we removed cv2 and OCR dependencies, return a fallback message
+            # In a production environment, you would install these dependencies
+            logger.warning("Image OCR not available - cv2 and OCR libraries not installed")
+            return "Image text extraction not available. Please install opencv-python, pytesseract, and easyocr for full OCR support."
             
         except Exception as e:
             logger.error(f"Image text extraction failed: {str(e)}")
@@ -1114,3 +1165,87 @@ Format your response as JSON:
             method = redaction.get('detection_method', 'unknown')
             methods.add(method)
         return list(methods) 
+
+    def validate_pdf_file(self, file_content: bytes, filename: str) -> Dict[str, Any]:
+        """Validate PDF file and provide diagnostic information"""
+        try:
+            import PyPDF2
+            import pdfplumber
+            import io
+            
+            result = {
+                'filename': filename,
+                'file_size': len(file_content),
+                'is_valid_pdf': False,
+                'has_pdf_header': False,
+                'is_encrypted': False,
+                'page_count': 0,
+                'has_text': False,
+                'errors': [],
+                'warnings': []
+            }
+            
+            # Check PDF header
+            if file_content.startswith(b'%PDF'):
+                result['has_pdf_header'] = True
+            else:
+                result['errors'].append("File does not have valid PDF header")
+                return result
+            
+            # Check file size
+            if len(file_content) < 100:
+                result['errors'].append("File is too small to be a valid PDF")
+                return result
+            
+            # Convert bytes to BytesIO
+            file_stream = io.BytesIO(file_content)
+            
+            # Try pdfplumber
+            try:
+                with pdfplumber.open(file_stream) as pdf:
+                    result['page_count'] = len(pdf.pages)
+                    if result['page_count'] > 0:
+                        result['is_valid_pdf'] = True
+                        
+                        # Check for text content
+                        text = ""
+                        for i, page in enumerate(pdf.pages):
+                            page_text = page.extract_text()
+                            if page_text:
+                                text += page_text
+                            else:
+                                result['warnings'].append(f"Page {i+1} has no extractable text")
+                        
+                        if text.strip():
+                            result['has_text'] = True
+                        else:
+                            result['warnings'].append("PDF contains no extractable text (likely image-based)")
+                            
+            except Exception as e:
+                result['errors'].append(f"pdfplumber error: {str(e)}")
+            
+            # Try PyPDF2
+            try:
+                file_stream.seek(0)
+                pdf_reader = PyPDF2.PdfReader(file_stream)
+                
+                if pdf_reader.is_encrypted:
+                    result['is_encrypted'] = True
+                    result['errors'].append("PDF is password-protected")
+                
+                if len(pdf_reader.pages) > 0 and not result['is_valid_pdf']:
+                    result['is_valid_pdf'] = True
+                    result['page_count'] = len(pdf_reader.pages)
+                    
+            except Exception as e:
+                result['errors'].append(f"PyPDF2 error: {str(e)}")
+            
+            return result
+            
+        except Exception as e:
+            return {
+                'filename': filename,
+                'file_size': len(file_content),
+                'is_valid_pdf': False,
+                'errors': [f"Validation error: {str(e)}"]
+            } 
