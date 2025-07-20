@@ -295,4 +295,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ and cutting-edge AI for document privacy and compliance** 
+**Built with cutting-edge AI for document privacy and compliance** 
