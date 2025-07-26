@@ -3,12 +3,8 @@
   "build": {
     "builder": "NIXPACKS"
   },
-  "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "chmod +x build_and_start.sh && ./build_and_start.sh"
-  },
   "deploy": {
-    "startCommand": "cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT",
+    "startCommand": "npm start",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",

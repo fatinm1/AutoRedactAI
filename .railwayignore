@@ -1,0 +1,54 @@
+# Development files
+*.log
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Scripts
+*.sh
+*.ps1
+*.bat
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# Temporary files
+temp/
+logs/
+data/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Node modules (will be installed during build)
+node_modules/ 
