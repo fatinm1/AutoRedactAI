@@ -15,11 +15,15 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_API_URL || 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
       },
     },
+  },
+  preview: {
+    port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
+    host: true,
   },
   build: {
     outDir: 'dist',

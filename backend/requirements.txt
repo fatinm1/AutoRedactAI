@@ -1,95 +1,50 @@
-# =============================================================================
-# AutoRedactAI - Advanced AI-Powered Document Redaction System
-# =============================================================================
-# 
-# This requirements.txt file contains all dependencies needed for the AI redaction system.
-# The system uses multiple AI/ML approaches for 95%+ accurate sensitive entity detection.
-#
-# Key AI Components:
-# 1. Large Language Models (Llama 2.7B)
-# 2. Machine Learning Ensemble (6+ models)
-# 3. Natural Language Processing (NLP)
-# 4. Computer Vision (OCR)
-# 5. Document Processing
-# =============================================================================
+# Core FastAPI and web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+structlog==23.2.0
 
-# =============================================================================
-# CORE WEB FRAMEWORK
-# =============================================================================
-fastapi==0.104.1                    # Modern web framework for building APIs
-uvicorn[standard]==0.24.0           # ASGI server for running FastAPI
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
 
-# =============================================================================
-# AUTHENTICATION & SECURITY
-# =============================================================================
-python-multipart==0.0.6             # Handle file uploads and form data
-python-jose[cryptography]==3.3.0    # JWT token handling for authentication
-passlib[bcrypt]==1.7.4              # Password hashing and verification
-structlog==23.2.0                   # Structured logging for monitoring
+# Configuration and validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
 
-# =============================================================================
-# CACHING & QUEUES
-# =============================================================================
-redis==5.0.1                        # In-memory cache and task queue backend
+# HTTP and networking
+httpx==0.25.2
+requests==2.31.0
 
-# =============================================================================
-# AI/ML CORE DEPENDENCIES
-# =============================================================================
-transformers==4.35.2                # Hugging Face transformers for NLP models
-torch==2.1.1                        # PyTorch for deep learning and tensor operations
-spacy==3.7.2                        # Industrial-strength NLP library for NER
-nltk==3.8.1                         # Natural Language Toolkit for text processing
-scikit-learn==1.3.2                 # Machine learning library for ML ensemble
-numpy==1.24.3                       # Numerical computing for array operations
-pandas==2.1.3                       # Data manipulation and analysis
+# CORS and middleware
+starlette==0.27.0
 
-# =============================================================================
-# LARGE LANGUAGE MODELS (LLAMA)
-# =============================================================================
-llama-cpp-python==0.2.11            # Python bindings for Llama 2.7B model
-sentence-transformers==2.2.2        # Sentence embeddings for semantic similarity
-accelerate==0.24.1                  # Hugging Face library for model acceleration
+# Optional AI/ML libraries (will be imported conditionally)
+# Core ML libraries
+scikit-learn==1.3.2
+numpy==1.24.3
+pandas==2.0.3
 
-# =============================================================================
-# MACHINE LEARNING ENSEMBLE (6+ MODELS)
-# =============================================================================
-xgboost==2.0.1                      # Gradient boosting for high accuracy classification
-lightgbm==4.1.0                     # Fast gradient boosting framework
-catboost==1.2.2                     # Categorical boosting for structured data
+# Document processing
+PyPDF2==3.0.1
+python-docx==1.1.0
+pdfplumber==0.10.3
 
-# =============================================================================
-# NATURAL LANGUAGE PROCESSING (NLP)
-# =============================================================================
-textblob==0.17.1                    # Sentiment analysis and text processing
+# NLP libraries (optional)
+spacy==3.7.2
 
-# =============================================================================
-# DOCUMENT PROCESSING
-# =============================================================================
-PyPDF2==3.0.1                       # PDF text extraction and manipulation
-python-docx==1.1.0                  # Word document (.docx) text extraction
-Pillow==10.1.0                      # Image processing for document images
-pdfplumber==0.10.0                  # Advanced PDF text extraction with layout analysis
+# Redis (optional, for caching and rate limiting)
+redis==5.0.1
 
-# =============================================================================
-# UTILITIES & CONFIGURATION
-# =============================================================================
-python-dotenv==1.0.0                # Environment variable management
-pydantic==2.5.0                     # Data validation and settings management
-tqdm==4.66.1                        # Progress bars for long-running operations
-joblib==1.3.2                       # Parallel computing for ML model training
+# AWS SDK (optional, for S3 storage)
+boto3==1.34.0
 
-# =============================================================================
-# OPTIONAL DEPENDENCIES (For Production OCR)
-# =============================================================================
-# Uncomment these for full OCR support (may cause Windows compatibility issues):
-# opencv-python==4.8.1.78           # Computer vision for image preprocessing
-# pytesseract==0.3.10               # OCR engine for text extraction from images
-# easyocr==1.7.0                    # Easy-to-use OCR library
+# Monitoring and logging
+sentry-sdk[fastapi]==1.38.0
 
-# =============================================================================
-# DEVELOPMENT & TESTING (Optional)
-# =============================================================================
-# pytest==7.4.0                     # Testing framework
-# black==23.3.0                     # Code formatting
-# flake8==6.0.0                     # Code linting
-# mypy==1.3.0                       # Type checking 
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1 

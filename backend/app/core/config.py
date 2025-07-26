@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-3.5-turbo"
     
     # CORS
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173,https://*.railway.app"
     
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 100
