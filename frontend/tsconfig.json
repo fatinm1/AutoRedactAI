@@ -29,26 +29,13 @@
     /* Additional options */
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "removeComments": false,
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
-    "noImplicitThis": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true
+    "forceConsistentCasingInFileNames": true
   },
   "include": [
-    "src",
-    "vite.config.ts"
+    "src"
   ],
   "exclude": [
     "node_modules",
     "dist"
-  ],
-  "references": [
-    { "path": "./tsconfig.node.json" }
   ]
 } 
