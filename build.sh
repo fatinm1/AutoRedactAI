@@ -15,4 +15,8 @@ cd backend
 pip install -r requirements.txt
 cd ..
 
+# Make sure the backend can find its modules
+echo "🔧 Setting up Python path..."
+export PYTHONPATH="${PYTHONPATH}:/app/backend"
+
 echo "✅ Build completed!" 
