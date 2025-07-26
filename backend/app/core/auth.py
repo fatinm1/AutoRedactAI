@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 from app.models.user import User
 from app.services.user_service import UserService
+from app.core.database import get_db
+from sqlalchemy.orm import Session
 
 # JWT Configuration
 SECRET_KEY = "your-secret-key-here"  # In production, use environment variable
@@ -35,7 +37,7 @@ def verify_token(token: str) -> Optional[dict]:
     except JWTError:
         return None
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)) -> User:
     """Get current authenticated user from JWT token"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,7 +57,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except JWTError:
         raise credentials_exception
     
-    user = user_service.get_user_by_id(user_id)
+    user = user_service.get_user_by_id(db, user_id)
     if user is None:
         raise credentials_exception
     

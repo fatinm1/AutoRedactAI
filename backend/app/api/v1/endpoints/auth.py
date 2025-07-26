@@ -2,9 +2,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
+from sqlalchemy.orm import Session
 from app.models.user import User, UserCreate, UserLogin, UserResponse
 from app.services.user_service import UserService
 from app.core.auth import create_access_token, verify_token, get_current_user
+from app.core.database import get_db
 from datetime import timedelta
 import structlog
 
@@ -23,11 +25,11 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 @router.post("/register", response_model=TokenResponse)
-async def register(user_data: UserCreate):
+async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     try:
         # Check if user already exists
-        existing_user = user_service.get_user_by_email(user_data.email)
+        existing_user = user_service.get_user_by_email(db, user_data.email)
         if existing_user:
             raise HTTPException(
                 status_code=400,
@@ -35,7 +37,7 @@ async def register(user_data: UserCreate):
             )
         
         # Create new user
-        user = user_service.create_user(user_data)
+        user = user_service.create_user(db, user_data)
         
         # Create access token
         access_token = create_access_token(
@@ -64,13 +66,13 @@ async def register(user_data: UserCreate):
         )
 
 @router.post("/login", response_model=TokenResponse)
-async def login(user_data: UserLogin):
+async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     """Login user"""
     try:
         logger.info("Login attempt", email=user_data.email)
         
         # Debug: Check if user exists
-        user = user_service.get_user_by_email(user_data.email)
+        user = user_service.get_user_by_email(db, user_data.email)
         if not user:
             logger.warning("User not found", email=user_data.email)
             raise HTTPException(
@@ -81,7 +83,7 @@ async def login(user_data: UserLogin):
         logger.info("User found", user_id=user.id, email=user.email)
         
         # Authenticate user
-        authenticated_user = user_service.authenticate_user(user_data.email, user_data.password)
+        authenticated_user = user_service.authenticate_user(db, user_data.email, user_data.password)
         if not authenticated_user:
             logger.warning("Authentication failed", email=user_data.email)
             raise HTTPException(
@@ -133,7 +135,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     )
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(refresh_data: RefreshTokenRequest):
+async def refresh_token(refresh_data: RefreshTokenRequest, db: Session = Depends(get_db)):
     """Refresh access token"""
     try:
         # Verify refresh token (in a real app, you'd have separate refresh tokens)
@@ -145,7 +147,7 @@ async def refresh_token(refresh_data: RefreshTokenRequest):
             )
         
         user_id = payload.get("sub")
-        user = user_service.get_user_by_id(user_id)
+        user = user_service.get_user_by_id(db, user_id)
         if not user:
             raise HTTPException(
                 status_code=401,

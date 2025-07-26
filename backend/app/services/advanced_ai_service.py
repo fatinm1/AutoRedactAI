@@ -29,13 +29,55 @@ from sklearn.svm import SVC
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-import xgboost as xgb
-import lightgbm as lgb
-from catboost import CatBoostClassifier
-from sentence_transformers import SentenceTransformer
-import textblob
-from llama_cpp import Llama
-import joblib
+# Optional imports - will be imported only if available
+try:
+    import xgboost as xgb
+    XGBOOST_AVAILABLE = True
+except ImportError:
+    XGBOOST_AVAILABLE = False
+    xgb = None
+
+try:
+    import lightgbm as lgb
+    LIGHTGBM_AVAILABLE = True
+except ImportError:
+    LIGHTGBM_AVAILABLE = False
+    lgb = None
+
+try:
+    from catboost import CatBoostClassifier
+    CATBOOST_AVAILABLE = True
+except ImportError:
+    CATBOOST_AVAILABLE = False
+    CatBoostClassifier = None
+
+try:
+    from sentence_transformers import SentenceTransformer
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
+    SentenceTransformer = None
+
+try:
+    import textblob
+    TEXTBLOB_AVAILABLE = True
+except ImportError:
+    TEXTBLOB_AVAILABLE = False
+    textblob = None
+
+try:
+    from llama_cpp import Llama
+    LLAMA_AVAILABLE = True
+except ImportError:
+    LLAMA_AVAILABLE = False
+    Llama = None
+
+try:
+    import joblib
+    JOBLIB_AVAILABLE = True
+except ImportError:
+    JOBLIB_AVAILABLE = False
+    joblib = None
 from pathlib import Path
 
 logger = structlog.get_logger()
@@ -89,6 +131,12 @@ class AdvancedAIService:
         - Complex document analysis
         - Semantic understanding of sensitive information
         """
+        if not LLAMA_AVAILABLE:
+            logger.warning("Llama library not available, skipping Llama initialization")
+            self.llama_available = False
+            self.llama = None
+            return
+            
         try:
             # Check if Llama model exists, otherwise use a smaller alternative
             model_path = "models/llama-2-7b-chat.gguf"
@@ -125,30 +173,43 @@ class AdvancedAIService:
         7. Gradient Boosting - Additional boosting model
         """
         try:
-            # 1. XGBoost Classifier - High performance gradient boosting
-            self.xgb_model = xgb.XGBClassifier(
-                n_estimators=100,      # Number of trees
-                max_depth=6,           # Maximum tree depth
-                learning_rate=0.1,     # Learning rate
-                random_state=42        # For reproducibility
-            )
+            # Initialize models only if libraries are available
+            if XGBOOST_AVAILABLE:
+                # 1. XGBoost Classifier - High performance gradient boosting
+                self.xgb_model = xgb.XGBClassifier(
+                    n_estimators=100,      # Number of trees
+                    max_depth=6,           # Maximum tree depth
+                    learning_rate=0.1,     # Learning rate
+                    random_state=42        # For reproducibility
+                )
+            else:
+                self.xgb_model = None
+                logger.warning("XGBoost not available, skipping XGBoost model")
             
-            # 2. LightGBM Classifier - Fast gradient boosting
-            self.lgb_model = lgb.LGBMClassifier(
-                n_estimators=100,
-                max_depth=6,
-                learning_rate=0.1,
-                random_state=42
-            )
+            if LIGHTGBM_AVAILABLE:
+                # 2. LightGBM Classifier - Fast gradient boosting
+                self.lgb_model = lgb.LGBMClassifier(
+                    n_estimators=100,
+                    max_depth=6,
+                    learning_rate=0.1,
+                    random_state=42
+                )
+            else:
+                self.lgb_model = None
+                logger.warning("LightGBM not available, skipping LightGBM model")
             
-            # 3. CatBoost Classifier - Categorical boosting
-            self.catboost_model = CatBoostClassifier(
-                iterations=100,        # Number of iterations
-                depth=6,               # Tree depth
-                learning_rate=0.1,
-                random_state=42,
-                verbose=False          # Disable verbose output
-            )
+            if CATBOOST_AVAILABLE:
+                # 3. CatBoost Classifier - Categorical boosting
+                self.catboost_model = CatBoostClassifier(
+                    iterations=100,        # Number of iterations
+                    depth=6,               # Tree depth
+                    learning_rate=0.1,
+                    random_state=42,
+                    verbose=False          # Disable verbose output
+                )
+            else:
+                self.catboost_model = None
+                logger.warning("CatBoost not available, skipping CatBoost model")
             
             # 4. Random Forest - Ensemble of decision trees
             self.rf_model = RandomForestClassifier(
@@ -200,7 +261,11 @@ class AdvancedAIService:
             
             # 2. Sentence Transformers for embeddings
             # Used for semantic similarity and text understanding
-            self.sentence_transformer = SentenceTransformer('all-MiniLM-L6-v2')
+            if SENTENCE_TRANSFORMERS_AVAILABLE:
+                self.sentence_transformer = SentenceTransformer('all-MiniLM-L6-v2')
+            else:
+                self.sentence_transformer = None
+                logger.warning("Sentence Transformers not available, skipping sentence transformer")
             
             # 3. TF-IDF Vectorizer for text feature extraction
             # Converts text to numerical features for ML models
@@ -217,7 +282,11 @@ class AdvancedAIService:
             self.fasttext_model = None
             
             # 6. TextBlob for sentiment and subjectivity analysis
-            self.textblob_analyzer = textblob.TextBlob
+            if TEXTBLOB_AVAILABLE:
+                self.textblob_analyzer = textblob.TextBlob
+            else:
+                self.textblob_analyzer = None
+                logger.warning("TextBlob not available, skipping TextBlob analyzer")
             
             logger.info("NLP models initialized successfully")
             
@@ -1164,15 +1233,15 @@ Format your response as JSON:
         CONFIDENTIAL DOCUMENT
         
         Employee Information:
-        Name: John Doe
-        Email: john.doe@example.com
+        Name: Dr. John
+        Email: john@example.com
         Phone: (555) 123-4567
         SSN: 123-45-6789
         Address: 123 Main Street, Anytown, CA 90210
         Salary: $75,000.00
         
         Bank Account Details:
-        Account Number: 1234-5678-9012-3456
+        Account Number: 4233-1243-1111-1111
         Routing Number: 021000021
         Bank: Chase Bank
         
@@ -1204,16 +1273,16 @@ Format your response as JSON:
         
         Client Information:
         Company: ABC Corporation
-        Contact: Robert Johnson
-        Email: robert.johnson@abccorp.com
-        Phone: (555) 234-5678
+        Contact: Dr. John
+        Email: john@example.com
+        Phone: (555) 123-4567
         Address: 456 Business Ave, Suite 100, New York, NY 10001
         
         Financial Information:
         Project Budget: $125,000.00
         Payment Terms: Net 30
         Tax ID: 12-3456789
-        Credit Card: 4111-1111-1111-1111
+        Credit Card: 4233-1243-1111-1111
         
         Technical Specifications:
         Server IP: 10.0.0.50
