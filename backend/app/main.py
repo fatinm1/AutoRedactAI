@@ -1,116 +1,77 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
-import time
-import structlog
-
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.database import init_db
-from app.api.v1.api import api_router
-from app.core.security import rate_limit_middleware
-
-# Configure structured logging
-structlog.configure(
-    processors=[
-        structlog.stdlib.filter_by_level,
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
-    ],
-    context_class=dict,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    wrapper_class=structlog.stdlib.BoundLogger,
-    cache_logger_on_first_use=True,
-)
+import structlog
 
 logger = structlog.get_logger()
 
 app = FastAPI(
-    title="AutoRedactAI API",
-    description="AI-powered document redaction platform for privacy and compliance",
-    version="1.0.0",
-    docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
-    redoc_url="/redoc" if settings.ENVIRONMENT != "production" else None,
-)
-
-# Security middleware
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=settings.ALLOWED_HOSTS
+    title=settings.APP_NAME,
+    version=settings.VERSION,
+    description="AI-Powered Document Redaction System"
 )
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=settings.ALLOWED_ORIGINS.split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Rate limiting middleware
-@app.middleware("http")
-async def rate_limit(request: Request, call_next):
-    return await rate_limit_middleware(request, call_next)
-
-# Request timing middleware
-@app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    return response
-
-# Global exception handler
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(
-        "Unhandled exception",
-        exc_info=exc,
-        path=request.url.path,
-        method=request.method,
-    )
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"}
-    )
-
-# Startup event
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database on startup"""
-    try:
-        logger.info("Initializing database...")
-        init_db()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error("Database initialization failed", error=str(e))
-        # Don't raise here to allow the app to start even if DB fails
+# API routes
+app.include_router(api_router, prefix="/api/v1")
 
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {
-        "status": "healthy",
-        "timestamp": time.time(),
-        "version": "1.0.0"
-    }
+    return {"status": "healthy", "service": "AutoRedactAI"}
 
-# Include API routes
-app.include_router(api_router, prefix="/api/v1")
+# Serve frontend static files
+frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+if os.path.exists(frontend_path):
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+    
+    @app.get("/")
+    async def serve_frontend():
+        return FileResponse(os.path.join(frontend_path, "index.html"))
+    
+    @app.get("/{full_path:path}")
+    async def serve_frontend_routes(full_path: str):
+        # Serve index.html for all routes to support client-side routing
+        return FileResponse(os.path.join(frontend_path, "index.html"))
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting AutoRedactAI application")
+    try:
+        init_db()
+        logger.info("Database initialized successfully")
+        
+        # Build frontend if it doesn't exist
+        frontend_dist_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+        if not os.path.exists(frontend_dist_path):
+            logger.info("Frontend dist not found, building frontend...")
+            try:
+                import subprocess
+                frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+                subprocess.run(["npm", "install"], cwd=frontend_path, check=True)
+                subprocess.run(["npm", "run", "build"], cwd=frontend_path, check=True)
+                logger.info("Frontend built successfully")
+            except Exception as e:
+                logger.warning(f"Failed to build frontend: {e}")
+        
+    except Exception as e:
+        logger.error("Failed to initialize database", error=str(e))
+        raise
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=settings.ENVIRONMENT == "development"
-    ) 
+    uvicorn.run(app, host="0.0.0.0", port=8000) 
