@@ -144,13 +144,19 @@ async def debug_react_script():
         else:
             return {"error": "Assets directory not found"}
 
-# Explicit JavaScript file serving with correct MIME type
+# Explicit JavaScript file serving with correct MIME type (must be before catch-all)
 @app.get("/assets/{filename:path}")
-async def serve_js_files(filename: str):
+async def serve_js_files(filename: str, request: Request):
+    logger.info(f"Assets endpoint called for: {filename}")
+    logger.info(f"Request path: {request.url.path}")
+    
     if not frontend_available or not frontend_dist_path:
+        logger.error("Frontend not available for assets request")
         raise HTTPException(status_code=404, detail="Frontend not available")
     
     file_path = os.path.join(frontend_dist_path, "assets", filename)
+    logger.info(f"Looking for file at: {file_path}")
+    
     if os.path.exists(file_path):
         try:
             with open(file_path, 'rb') as f:
@@ -168,7 +174,7 @@ async def serve_js_files(filename: str):
             else:
                 media_type = "application/octet-stream"
             
-            logger.info(f"Serving {filename} with MIME type: {media_type}")
+            logger.info(f"Serving {filename} with MIME type: {media_type}, size: {len(content)} bytes")
             return FileResponse(
                 path=file_path,
                 media_type=media_type,
@@ -179,6 +185,11 @@ async def serve_js_files(filename: str):
             raise HTTPException(status_code=500, detail="Error serving file")
     else:
         logger.error(f"File not found: {file_path}")
+        # List what files are actually in the assets directory
+        assets_dir = os.path.join(frontend_dist_path, "assets")
+        if os.path.exists(assets_dir):
+            files = os.listdir(assets_dir)
+            logger.info(f"Available files in assets directory: {files}")
         raise HTTPException(status_code=404, detail="File not found")
 
 # Root endpoint - serve frontend or API info
@@ -523,6 +534,10 @@ async def serve_manifest():
 async def serve_frontend_routes(full_path: str):
     # Don't serve frontend for API routes
     if full_path.startswith("api") or full_path.startswith("health"):
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Don't serve frontend for assets routes (let the specific assets endpoint handle them)
+    if full_path.startswith("assets/"):
         raise HTTPException(status_code=404, detail="Not found")
     
     # Serve frontend if available
