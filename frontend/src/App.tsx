@@ -1,67 +1,87 @@
-import React from 'react'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider } from './contexts/AuthContext';
+
+// Layout
+import Layout from './components/Layout/Layout';
+
+// Pages
+import Dashboard from './pages/Dashboard';
+import DocumentUpload from './pages/DocumentUpload';
+import DocumentReview from './pages/DocumentReview';
+import DocumentHistory from './pages/DocumentHistory';
+import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
+
+// Auth Pages
+import Login from './pages/Auth/Login';
+import Register from './pages/Auth/Register';
+
+// Components
+import ProtectedRoute from './components/Auth/ProtectedRoute';
+
+// Styles
+import './styles/globals.css';
 
 function App() {
-  console.log('App component rendering...');
-  
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '40px',
-        borderRadius: '16px',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-        textAlign: 'center',
-        maxWidth: '500px',
-        margin: '20px'
-      }}>
-        <div style={{ fontSize: '3rem', marginBottom: '20px' }}>🤖</div>
-        <h1 style={{
-          color: '#1e293b',
-          marginBottom: '20px',
-          fontSize: '2.5rem',
-          fontWeight: '700'
-        }}>
-          AutoRedactAI
-        </h1>
-        <p style={{ color: '#64748b', fontSize: '1.1rem', marginBottom: '30px' }}>
-          AI-Powered Document Privacy Assistant
-        </p>
-        
-        <div style={{
-          padding: '16px',
-          background: '#f0f9ff',
-          border: '2px solid #0ea5e9',
-          borderRadius: '8px',
-          margin: '20px 0',
-          color: '#0c4a6e'
-        }}>
-          <strong>✅ React App is Working!</strong><br/>
-          <small>Frontend is rendering successfully</small>
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            
+            {/* Protected routes */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="upload" element={<DocumentUpload />} />
+              <Route path="review/:id" element={<DocumentReview />} />
+              <Route path="history" element={<DocumentHistory />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
+            
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+          
+          {/* Toast notifications */}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: '#10b981',
+                  secondary: '#fff',
+                },
+              },
+              error: {
+                duration: 5000,
+                iconTheme: {
+                  primary: '#ef4444',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
         </div>
-        
-        <div style={{ marginTop: '20px' }}>
-          <h3 style={{ color: '#1e293b', marginBottom: '10px' }}>🚀 Features:</h3>
-          <ul style={{ color: '#64748b', textAlign: 'left', lineHeight: '1.6' }}>
-            <li>• AI-powered document redaction</li>
-            <li>• Privacy and compliance tools</li>
-            <li>• PDF and DOCX support</li>
-            <li>• Advanced ML models</li>
-          </ul>
-        </div>
-        
-        <div style={{ marginTop: '30px', fontSize: '0.9rem', color: '#94a3b8' }}>
-          <p><strong>React + TypeScript</strong></p>
-        </div>
-      </div>
-    </div>
-  )
+      </Router>
+    </AuthProvider>
+  );
 }
 
-export default App 
+export default App; 
