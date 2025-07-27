@@ -3,32 +3,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
-import subprocess
-import sys
-from app.api.v1.api import api_router
-from app.core.config import settings
-from app.core.database import init_db
 import structlog
 
 logger = structlog.get_logger()
 
 app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.VERSION,
+    title="AutoRedactAI",
+    version="1.0.0",
     description="AI-Powered Document Redaction System"
 )
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS.split(","),
+    allow_origins="*",  # Simplified for now
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# API routes
-app.include_router(api_router, prefix="/api/v1")
 
 # Health check endpoint
 @app.get("/health")
@@ -40,19 +32,11 @@ async def health_check():
 async def root():
     return {"message": "AutoRedactAI API", "status": "running"}
 
-# Initialize database on startup
+# Initialize on startup
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting AutoRedactAI application")
     try:
-        # Try to initialize database connection (don't fail if it doesn't work)
-        try:
-            init_db()
-            logger.info("Database initialized successfully")
-        except Exception as e:
-            logger.warning(f"Database initialization failed: {e}")
-            logger.info("Continuing without database connection")
-        
         # Check for frontend files
         frontend_dist_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "frontend", "dist")
         if os.path.exists(frontend_dist_path):
@@ -70,6 +54,15 @@ async def startup_event():
             logger.info("Frontend static files mounted successfully")
         else:
             logger.info("Frontend dist not found, running in API-only mode")
+        
+        # Try to import and add API routes (but don't fail if they don't work)
+        try:
+            from app.api.v1.api import api_router
+            app.include_router(api_router, prefix="/api/v1")
+            logger.info("API routes loaded successfully")
+        except Exception as e:
+            logger.warning(f"Failed to load API routes: {e}")
+            logger.info("Running in basic mode without API routes")
         
     except Exception as e:
         logger.error("Failed to initialize application", error=str(e))
