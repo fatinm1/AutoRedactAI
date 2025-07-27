@@ -103,6 +103,17 @@ async def root():
                         logger.warning("Built index.html still contains development script reference!")
                     if "/assets/" in html_content:
                         logger.info("Built index.html contains asset references - good!")
+                    
+                    # Check for the actual script tags
+                    if '<script type="module"' in html_content:
+                        logger.info("Found script tags in built HTML")
+                        # Find all script tags
+                        import re
+                        script_tags = re.findall(r'<script[^>]*src="([^"]*)"[^>]*>', html_content)
+                        logger.info(f"Script tags found: {script_tags}")
+                    else:
+                        logger.warning("No script tags found in built HTML!")
+                        
             except Exception as e:
                 logger.error(f"Error reading index.html: {e}")
             
