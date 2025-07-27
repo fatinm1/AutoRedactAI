@@ -93,6 +93,19 @@ async def root():
     if frontend_available and frontend_dist_path:
         index_path = os.path.join(frontend_dist_path, "index.html")
         if os.path.exists(index_path):
+            # Debug: Read and log the content of the built index.html
+            try:
+                with open(index_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                    logger.info(f"Built index.html content (first 500 chars): {html_content[:500]}")
+                    # Check if it contains the correct script references
+                    if "/src/main.tsx" in html_content:
+                        logger.warning("Built index.html still contains development script reference!")
+                    if "/assets/" in html_content:
+                        logger.info("Built index.html contains asset references - good!")
+            except Exception as e:
+                logger.error(f"Error reading index.html: {e}")
+            
             # Try to serve the React frontend
             try:
                 return FileResponse(index_path)
