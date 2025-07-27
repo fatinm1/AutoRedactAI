@@ -2,9 +2,9 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// Create axios instance with base configuration
+// Create axios instance
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1`,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -24,56 +24,23 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle token refresh
+// Response interceptor to handle auth errors
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
-            refresh_token: refreshToken,
-          });
-
-          const { access_token } = response.data;
-          localStorage.setItem('token', access_token);
-
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
-      }
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
     }
-
     return Promise.reject(error);
   }
 );
-
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
-
-export interface RegisterData {
-  email: string;
-  full_name: string;
-  password: string;
-}
 
 export interface User {
   id: string;
   email: string;
   full_name: string;
-  is_active: boolean;
+  created_at: string;
 }
 
 export interface AuthResponse {
@@ -82,59 +49,46 @@ export interface AuthResponse {
   user: User;
 }
 
-export const authService = {
-  // Login user
+export interface RegisterRequest {
+  email: string;
+  full_name: string;
+  password: string;
+}
+
+class AuthService {
   async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await api.post('/auth/login', { email, password });
-    const data = response.data;
-    // Store token
-    localStorage.setItem('token', data.access_token);
-    return data;
-  },
+    const response = await api.post('/api/v1/auth/login', {
+      email,
+      password,
+    });
+    
+    const { access_token, token_type, user } = response.data;
+    localStorage.setItem('token', access_token);
+    
+    return { access_token, token_type, user };
+  }
 
-  // Register user
-  async register(userData: RegisterData): Promise<AuthResponse> {
-    const response = await api.post('/auth/register', userData);
-    const data = response.data;
-    // Store token
-    localStorage.setItem('token', data.access_token);
-    return data;
-  },
+  async register(data: RegisterRequest): Promise<AuthResponse> {
+    const response = await api.post('/api/v1/auth/register', data);
+    
+    const { access_token, token_type, user } = response.data;
+    localStorage.setItem('token', access_token);
+    
+    return { access_token, token_type, user };
+  }
 
-  // Get current user
   async getCurrentUser(): Promise<User> {
-    const response = await api.get('/auth/me');
+    const response = await api.get('/api/v1/auth/me');
     return response.data;
-  },
+  }
 
-  // Refresh token
-  async refreshToken(refreshToken: string): Promise<AuthResponse> {
-    const response = await api.post('/auth/refresh', { refresh_token: refreshToken });
-    const data = response.data;
-    localStorage.setItem('token', data.access_token);
-    return data;
-  },
+  logout(): void {
+    localStorage.removeItem('token');
+  }
 
-  // Logout user
-  async logout(): Promise<void> {
-    try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      // Even if logout fails, clear local storage
-      console.warn('Logout request failed, but clearing local storage');
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('refresh_token');
-    }
-  },
-
-  // Check if user is authenticated
   isAuthenticated(): boolean {
     return !!localStorage.getItem('token');
-  },
-
-  // Get stored token
-  getToken(): string | null {
-    return localStorage.getItem('token');
   }
-}; 
+}
+
+export const authService = new AuthService(); 
