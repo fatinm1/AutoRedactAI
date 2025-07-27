@@ -93,7 +93,115 @@ async def root():
     if frontend_available and frontend_dist_path:
         index_path = os.path.join(frontend_dist_path, "index.html")
         if os.path.exists(index_path):
-            return FileResponse(index_path)
+            # For now, let's serve a simple test page to see if the issue is with React
+            html_content = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>AutoRedactAI - Document Privacy Assistant</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                        margin: 0; 
+                        padding: 0; 
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        min-height: 100vh;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    .container { 
+                        background: white; 
+                        padding: 40px; 
+                        border-radius: 16px; 
+                        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                        text-align: center;
+                        max-width: 500px;
+                        margin: 20px;
+                    }
+                    h1 { 
+                        color: #1e293b; 
+                        margin-bottom: 20px;
+                        font-size: 2.5rem;
+                        font-weight: 700;
+                    }
+                    .status { 
+                        padding: 16px; 
+                        background: #f0f9ff; 
+                        border: 2px solid #0ea5e9;
+                        border-radius: 8px; 
+                        margin: 20px 0;
+                        color: #0c4a6e;
+                    }
+                    .features {
+                        text-align: left;
+                        margin: 20px 0;
+                    }
+                    .features h3 {
+                        color: #1e293b;
+                        margin-bottom: 10px;
+                    }
+                    .features ul {
+                        color: #64748b;
+                        line-height: 1.6;
+                    }
+                    .btn {
+                        display: inline-block;
+                        background: #0ea5e9;
+                        color: white;
+                        padding: 12px 24px;
+                        text-decoration: none;
+                        border-radius: 8px;
+                        margin: 10px;
+                        transition: background 0.3s;
+                    }
+                    .btn:hover {
+                        background: #0284c7;
+                    }
+                    .logo {
+                        font-size: 3rem;
+                        margin-bottom: 20px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="logo">🤖</div>
+                    <h1>AutoRedactAI</h1>
+                    <p style="color: #64748b; font-size: 1.1rem; margin-bottom: 30px;">
+                        AI-Powered Document Privacy Assistant
+                    </p>
+                    
+                    <div class="status">
+                        <strong>✅ Backend Status:</strong> Running successfully!
+                    </div>
+                    
+                    <div class="features">
+                        <h3>🚀 Features:</h3>
+                        <ul>
+                            <li>AI-powered document redaction</li>
+                            <li>Privacy and compliance tools</li>
+                            <li>PDF and DOCX support</li>
+                            <li>Advanced ML models</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="margin-top: 30px;">
+                        <a href="/test" class="btn">Test Page</a>
+                        <a href="/api" class="btn">API Status</a>
+                        <a href="/health" class="btn">Health Check</a>
+                    </div>
+                    
+                    <div style="margin-top: 20px; font-size: 0.9rem; color: #94a3b8;">
+                        <p><strong>Note:</strong> This is a test page. The React frontend is being debugged.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            return HTMLResponse(content=html_content)
         else:
             logger.error(f"index.html not found at {index_path}")
     
