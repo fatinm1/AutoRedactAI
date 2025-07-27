@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -27,9 +27,9 @@ app.add_middleware(
 async def health_check():
     return {"status": "healthy", "service": "AutoRedactAI"}
 
-# Root endpoint
-@app.get("/")
-async def root():
+# API info endpoint
+@app.get("/api")
+async def api_info():
     return {"message": "AutoRedactAI API", "status": "running"}
 
 # Initialize on startup
@@ -42,18 +42,27 @@ async def startup_event():
         if os.path.exists(frontend_dist_path):
             app.mount("/static", StaticFiles(directory=frontend_dist_path), name="static")
             
-            @app.get("/app")
+            # Serve frontend at root path
+            @app.get("/")
             async def serve_frontend():
                 return FileResponse(os.path.join(frontend_dist_path, "index.html"))
             
-            @app.get("/app/{full_path:path}")
+            # Serve frontend for all other routes (for client-side routing)
+            @app.get("/{full_path:path}")
             async def serve_frontend_routes(full_path: str):
-                # Serve index.html for all routes to support client-side routing
+                # Don't serve frontend for API routes
+                if full_path.startswith("api") or full_path.startswith("health"):
+                    raise HTTPException(status_code=404, detail="Not found")
+                # Serve index.html for all other routes to support client-side routing
                 return FileResponse(os.path.join(frontend_dist_path, "index.html"))
             
             logger.info("Frontend static files mounted successfully")
         else:
             logger.info("Frontend dist not found, running in API-only mode")
+            # If no frontend, serve API info at root
+            @app.get("/")
+            async def root():
+                return {"message": "AutoRedactAI API", "status": "running", "note": "Frontend not found"}
         
         # Try to import and add API routes (but don't fail if they don't work)
         try:
