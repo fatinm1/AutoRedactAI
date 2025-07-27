@@ -78,9 +78,8 @@ async def startup_event():
                 except Exception as e:
                     logger.error(f"Error listing assets: {e}")
                 
-                # Mount static files directory
-                app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
-                logger.info("Frontend static files mounted successfully")
+                # Note: We're handling static files explicitly with correct MIME types
+                logger.info("Frontend assets will be served with explicit MIME types")
             else:
                 logger.error(f"Assets directory not found at: {assets_path}")
         else:
@@ -144,6 +143,43 @@ async def debug_react_script():
             }
         else:
             return {"error": "Assets directory not found"}
+
+# Explicit JavaScript file serving with correct MIME type
+@app.get("/assets/{filename:path}")
+async def serve_js_files(filename: str):
+    if not frontend_available or not frontend_dist_path:
+        raise HTTPException(status_code=404, detail="Frontend not available")
+    
+    file_path = os.path.join(frontend_dist_path, "assets", filename)
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'rb') as f:
+                content = f.read()
+            
+            # Set correct MIME type based on file extension
+            if filename.endswith('.js'):
+                media_type = "application/javascript"
+            elif filename.endswith('.js.map'):
+                media_type = "application/json"
+            elif filename.endswith('.css'):
+                media_type = "text/css"
+            elif filename.endswith('.svg'):
+                media_type = "image/svg+xml"
+            else:
+                media_type = "application/octet-stream"
+            
+            logger.info(f"Serving {filename} with MIME type: {media_type}")
+            return FileResponse(
+                path=file_path,
+                media_type=media_type,
+                headers={"Cache-Control": "public, max-age=31536000"}
+            )
+        except Exception as e:
+            logger.error(f"Error serving {filename}: {e}")
+            raise HTTPException(status_code=500, detail="Error serving file")
+    else:
+        logger.error(f"File not found: {file_path}")
+        raise HTTPException(status_code=404, detail="File not found")
 
 # Root endpoint - serve frontend or API info
 @app.get("/")
