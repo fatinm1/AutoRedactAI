@@ -67,9 +67,22 @@ async def startup_event():
             except Exception as e:
                 logger.error(f"Error listing files: {e}")
             
-            # Mount static files directory
-            app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist_path, "assets")), name="assets")
-            logger.info("Frontend static files mounted successfully")
+            # Check if assets directory exists
+            assets_path = os.path.join(frontend_dist_path, "assets")
+            if os.path.exists(assets_path):
+                logger.info(f"Assets directory found at: {assets_path}")
+                # List files in assets directory
+                try:
+                    for file in os.listdir(assets_path):
+                        logger.info(f"  Asset file: {file}")
+                except Exception as e:
+                    logger.error(f"Error listing assets: {e}")
+                
+                # Mount static files directory
+                app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+                logger.info("Frontend static files mounted successfully")
+            else:
+                logger.error(f"Assets directory not found at: {assets_path}")
         else:
             logger.warning("Frontend dist not found in any expected location")
             logger.info("Running in API-only mode")
@@ -86,6 +99,51 @@ async def startup_event():
     except Exception as e:
         logger.error("Failed to initialize application", error=str(e))
         # Don't raise the error to allow the app to start
+
+# Add middleware to log all requests
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Request: {request.method} {request.url.path}")
+    response = await call_next(request)
+    logger.info(f"Response: {response.status_code}")
+    return response
+
+# Debug endpoint to serve React script directly
+@app.get("/debug-react-script")
+async def debug_react_script():
+    if not frontend_available or not frontend_dist_path:
+        return {"error": "Frontend not available"}
+    
+    script_path = os.path.join(frontend_dist_path, "assets", "index-BbkOudU3.js")
+    if os.path.exists(script_path):
+        try:
+            with open(script_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                logger.info(f"React script exists, size: {len(content)} bytes")
+                logger.info(f"First 200 chars: {content[:200]}")
+                return {
+                    "status": "found",
+                    "size": len(content),
+                    "first_200_chars": content[:200],
+                    "path": script_path
+                }
+        except Exception as e:
+            logger.error(f"Error reading React script: {e}")
+            return {"error": f"Error reading script: {e}"}
+    else:
+        logger.error(f"React script not found at: {script_path}")
+        # List what files are actually in the assets directory
+        assets_dir = os.path.join(frontend_dist_path, "assets")
+        if os.path.exists(assets_dir):
+            files = os.listdir(assets_dir)
+            logger.info(f"Files in assets directory: {files}")
+            return {
+                "error": "Script not found",
+                "available_files": files,
+                "expected_path": script_path
+            }
+        else:
+            return {"error": "Assets directory not found"}
 
 # Root endpoint - serve frontend or API info
 @app.get("/")
