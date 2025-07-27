@@ -45,40 +45,16 @@ async def root():
 async def startup_event():
     logger.info("Starting AutoRedactAI application")
     try:
-        # Initialize database connection
-        init_db()
-        logger.info("Database initialized successfully")
+        # Try to initialize database connection (don't fail if it doesn't work)
+        try:
+            init_db()
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            logger.warning(f"Database initialization failed: {e}")
+            logger.info("Continuing without database connection")
         
-        # Build frontend if it doesn't exist
+        # Check for frontend files
         frontend_dist_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "frontend", "dist")
-        if not os.path.exists(frontend_dist_path):
-            logger.info("Frontend dist not found, building frontend...")
-            try:
-                frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "frontend")
-                
-                # Check if Node.js is available
-                try:
-                    subprocess.run(["node", "--version"], check=True, capture_output=True)
-                    logger.info("Node.js is available, building frontend...")
-                    
-                    # Install frontend dependencies
-                    logger.info("Installing frontend dependencies...")
-                    subprocess.run(["npm", "install"], cwd=frontend_path, check=True)
-                    
-                    # Build frontend
-                    logger.info("Building frontend...")
-                    subprocess.run(["npm", "run", "build"], cwd=frontend_path, check=True)
-                    
-                    logger.info("Frontend built successfully")
-                except (subprocess.CalledProcessError, FileNotFoundError):
-                    logger.warning("Node.js not available, skipping frontend build")
-                    logger.info("Frontend will not be served - API only mode")
-                    
-            except Exception as e:
-                logger.warning(f"Failed to build frontend: {e}")
-                logger.info("Frontend will not be served - API only mode")
-        
-        # Serve frontend static files if they exist
         if os.path.exists(frontend_dist_path):
             app.mount("/static", StaticFiles(directory=frontend_dist_path), name="static")
             
@@ -97,9 +73,7 @@ async def startup_event():
         
     except Exception as e:
         logger.error("Failed to initialize application", error=str(e))
-        # Don't raise the error in production to allow the app to start
-        if settings.ENVIRONMENT == "development":
-            raise
+        # Don't raise the error to allow the app to start
 
 if __name__ == "__main__":
     import uvicorn

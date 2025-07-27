@@ -54,17 +54,21 @@ COPY backend/ ./backend/
 # Copy built frontend from frontend-builder stage
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
+# Copy startup script
+COPY start.sh ./
+RUN chmod +x start.sh
+
 # Create non-root user
 RUN adduser --disabled-password --gecos '' appuser && \
     chown -R appuser:appuser /app
 USER appuser
 
-# Expose port
+# Expose port (will be overridden by Railway)
 EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
-# Run the application
-CMD ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+# Run the application with the startup script
+CMD ["./start.sh"] 
