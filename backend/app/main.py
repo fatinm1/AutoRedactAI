@@ -218,236 +218,50 @@ async def root():
                         logger.info(f"Script tags found: {script_tags}")
                     else:
                         logger.warning("No script tags found in built HTML!")
+                    
+                    # Check for root element
+                    if '<div id="root"></div>' in html_content:
+                        logger.info("Root element found in built HTML")
+                    else:
+                        logger.warning("Root element not found in built HTML!")
                         
             except Exception as e:
                 logger.error(f"Error reading index.html: {e}")
             
-            # For now, let's serve a JavaScript test page to see if JS executes at all
-            test_html = """
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>AutoRedactAI - JavaScript Test</title>
-                <style>
-                    body { 
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-                        margin: 0; 
-                        padding: 0; 
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        min-height: 100vh;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                    }
-                    .container { 
-                        background: white; 
-                        padding: 40px; 
-                        border-radius: 16px; 
-                        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-                        text-align: center;
-                        max-width: 600px;
-                        margin: 20px;
-                    }
-                    h1 { 
-                        color: #1e293b; 
-                        margin-bottom: 20px;
-                        font-size: 2.5rem;
-                        font-weight: 700;
-                    }
-                    .status { 
-                        padding: 16px; 
-                        background: #f0f9ff; 
-                        border: 2px solid #0ea5e9;
-                        border-radius: 8px; 
-                        margin: 20px 0;
-                        color: #0c4a6e;
-                    }
-                    .error { 
-                        padding: 16px; 
-                        background: #fef2f2; 
-                        border: 2px solid #ef4444;
-                        border-radius: 8px; 
-                        margin: 20px 0;
-                        color: #991b1b;
-                    }
-                    .success { 
-                        padding: 16px; 
-                        background: #f0fdf4; 
-                        border: 2px solid #22c55e;
-                        border-radius: 8px; 
-                        margin: 20px 0;
-                        color: #166534;
-                    }
-                    .btn {
-                        display: inline-block;
-                        background: #0ea5e9;
-                        color: white;
-                        padding: 12px 24px;
-                        text-decoration: none;
-                        border-radius: 8px;
-                        margin: 10px;
-                        transition: background 0.3s;
-                    }
-                    .btn:hover {
-                        background: #0284c7;
-                    }
-                    .logo {
-                        font-size: 3rem;
-                        margin-bottom: 20px;
-                    }
-                    #js-status, #react-status, #script-status {
-                        font-family: monospace;
-                        background: #f8fafc;
-                        padding: 10px;
-                        border-radius: 4px;
-                        margin: 10px 0;
-                        border: 1px solid #e2e8f0;
-                        text-align: left;
-                        font-size: 0.9rem;
-                    }
-                    .log {
-                        background: #1e293b;
-                        color: #e2e8f0;
-                        padding: 10px;
-                        border-radius: 4px;
-                        margin: 10px 0;
-                        font-family: monospace;
-                        font-size: 0.8rem;
-                        max-height: 200px;
-                        overflow-y: auto;
-                        text-align: left;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="logo">🤖</div>
-                    <h1>AutoRedactAI</h1>
-                    <p style="color: #64748b; font-size: 1.1rem; margin-bottom: 30px;">
-                        Advanced JavaScript & React Test
-                    </p>
-                    
-                    <div class="status">
-                        <strong>✅ Backend Status:</strong> Running successfully!
+            # Serve the actual React app
+            try:
+                return FileResponse(index_path)
+            except Exception as e:
+                logger.error(f"Error serving React frontend: {e}")
+                # Fallback to static page if React fails
+                return HTMLResponse(content="""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>AutoRedactAI - Error</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 40px; background: #f0f0f0; }
+                        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                        h1 { color: #ef4444; }
+                        .error { padding: 10px; background: #fef2f2; border-radius: 4px; margin: 10px 0; color: #991b1b; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>🚨 AutoRedactAI Error</h1>
+                        <div class="error">
+                            <strong>Error:</strong> React frontend failed to load<br>
+                            <small>Error: """ + str(e) + """</small>
+                        </div>
+                        <p>Please check the server logs for more details.</p>
+                        <hr>
+                        <p><a href="/test">Test Page</a></p>
+                        <p><a href="/api">API Status</a></p>
+                        <p><a href="/health">Health Check</a></p>
                     </div>
-                    
-                    <div id="js-status">
-                        <strong>JavaScript Status:</strong> Testing...
-                    </div>
-                    
-                    <div id="script-status">
-                        <strong>Script Loading Status:</strong> Testing...
-                    </div>
-                    
-                    <div id="react-status" class="error">
-                        <strong>⚠️ React Status:</strong> Not tested yet
-                    </div>
-                    
-                    <div id="console-log" class="log">
-                        <strong>Console Log:</strong><br>
-                        <span id="log-content">Starting tests...</span>
-                    </div>
-                    
-                    <div style="margin-top: 30px;">
-                        <a href="/debug-react-script" class="btn" target="_blank">Debug Script</a>
-                        <a href="/api" class="btn">API Status</a>
-                        <a href="/health" class="btn">Health Check</a>
-                    </div>
-                    
-                    <div style="margin-top: 20px; font-size: 0.9rem; color: #94a3b8;">
-                        <p><strong>Note:</strong> Testing JavaScript execution and React loading...</p>
-                    </div>
-                </div>
-                
-                <script>
-                    const log = (message) => {
-                        console.log(message);
-                        const logContent = document.getElementById('log-content');
-                        logContent.innerHTML += '<br>' + new Date().toLocaleTimeString() + ': ' + message;
-                    };
-                    
-                    log('JavaScript test: Script loaded!');
-                    
-                    // Test basic JavaScript functionality
-                    try {
-                        document.getElementById('js-status').innerHTML = '<strong>✅ JavaScript Status:</strong> Working! Script executed successfully.';
-                        document.getElementById('js-status').style.background = '#f0fdf4';
-                        document.getElementById('js-status').style.border = '1px solid #22c55e';
-                        document.getElementById('js-status').style.color = '#166534';
-                        
-                        log('JavaScript test: DOM manipulation successful');
-                        
-                        // Test script loading
-                        const testScriptLoading = () => {
-                            log('Testing script loading...');
-                            
-                            // First, test if we can fetch the script
-                            fetch('/assets/index-BbkOudU3.js')
-                                .then(response => {
-                                    log('Script fetch response status: ' + response.status);
-                                    log('Script fetch response type: ' + response.type);
-                                    log('Script fetch response headers: ' + JSON.stringify([...response.headers.entries()]));
-                                    
-                                    if (response.ok) {
-                                        document.getElementById('script-status').innerHTML = '<strong>✅ Script Loading Status:</strong> Script file accessible via fetch';
-                                        document.getElementById('script-status').style.background = '#f0fdf4';
-                                        document.getElementById('script-status').style.border = '1px solid #22c55e';
-                                        document.getElementById('script-status').style.color = '#166534';
-                                        
-                                        // Try to load the script dynamically
-                                        log('Attempting to load React script dynamically...');
-                                        const script = document.createElement('script');
-                                        script.type = 'module';
-                                        script.src = '/assets/index-BbkOudU3.js';
-                                        
-                                        script.onload = function() {
-                                            log('✅ React script loaded successfully via dynamic loading!');
-                                            document.getElementById('react-status').innerHTML = '<strong>✅ React Status:</strong> Script loaded successfully!';
-                                            document.getElementById('react-status').className = 'success';
-                                        };
-                                        
-                                        script.onerror = function(e) {
-                                            log('❌ React script failed to load via dynamic loading');
-                                            log('Error details: ' + JSON.stringify(e));
-                                            document.getElementById('react-status').innerHTML = '<strong>❌ React Status:</strong> Script failed to load';
-                                            document.getElementById('react-status').className = 'error';
-                                        };
-                                        
-                                        document.head.appendChild(script);
-                                    } else {
-                                        log('❌ Script fetch failed with status: ' + response.status);
-                                        document.getElementById('script-status').innerHTML = '<strong>❌ Script Loading Status:</strong> Script file not accessible';
-                                        document.getElementById('script-status').style.background = '#fef2f2';
-                                        document.getElementById('script-status').style.border = '1px solid #ef4444';
-                                        document.getElementById('script-status').style.color = '#991b1b';
-                                    }
-                                })
-                                .catch(error => {
-                                    log('❌ Script fetch error: ' + error.message);
-                                    document.getElementById('script-status').innerHTML = '<strong>❌ Script Loading Status:</strong> Fetch error: ' + error.message;
-                                    document.getElementById('script-status').style.background = '#fef2f2';
-                                    document.getElementById('script-status').style.border = '1px solid #ef4444';
-                                    document.getElementById('script-status').style.color = '#991b1b';
-                                });
-                        };
-                        
-                        // Run the test after a short delay
-                        setTimeout(testScriptLoading, 500);
-                        
-                    } catch (e) {
-                        log('❌ JavaScript test failed: ' + e.message);
-                        document.getElementById('js-status').innerHTML = '<strong>❌ JavaScript Status:</strong> Error: ' + e.message;
-                        document.getElementById('js-status').style.background = '#fef2f2';
-                        document.getElementById('js-status').style.border = '1px solid #ef4444';
-                        document.getElementById('js-status').style.color = '#991b1b';
-                    }
-                </script>
-            </body>
-            </html>
-            """
-            return HTMLResponse(content=test_html)
+                </body>
+                </html>
+                """)
         else:
             logger.error(f"index.html not found at {index_path}")
     
