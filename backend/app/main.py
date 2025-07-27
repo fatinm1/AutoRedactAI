@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import os
 import structlog
 
@@ -58,6 +58,15 @@ async def startup_event():
                 break
         
         if frontend_available:
+            # Debug: List files in dist directory
+            logger.info(f"Files in frontend dist directory:")
+            try:
+                for root, dirs, files in os.walk(frontend_dist_path):
+                    for file in files:
+                        logger.info(f"  {os.path.join(root, file)}")
+            except Exception as e:
+                logger.error(f"Error listing files: {e}")
+            
             # Mount static files directory
             app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist_path, "assets")), name="assets")
             logger.info("Frontend static files mounted successfully")
@@ -90,6 +99,39 @@ async def root():
     
     # Fallback to API info
     return {"message": "AutoRedactAI API", "status": "running", "note": "Frontend not available"}
+
+# Test endpoint to serve a simple HTML page
+@app.get("/test")
+async def test_page():
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>AutoRedactAI Test</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background: #f0f0f0; }
+            .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            h1 { color: #0ea5e9; }
+            .status { padding: 10px; background: #e0f2fe; border-radius: 4px; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🚀 AutoRedactAI Test Page</h1>
+            <div class="status">
+                <strong>Status:</strong> Backend is working! ✅
+            </div>
+            <p>If you can see this page, the backend is serving HTML correctly.</p>
+            <p>This means the issue is likely with the React frontend or its assets.</p>
+            <hr>
+            <p><a href="/">← Back to main page</a></p>
+            <p><a href="/api">API Status</a></p>
+            <p><a href="/health">Health Check</a></p>
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
 
 # Serve static files that might be requested
 @app.get("/favicon.svg")
