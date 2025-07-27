@@ -92,36 +92,20 @@ async def root():
     return {"message": "AutoRedactAI API", "status": "running", "note": "Frontend not available"}
 
 # Serve static files that might be requested
+@app.get("/favicon.svg")
+async def serve_favicon_svg():
+    if frontend_available and frontend_dist_path:
+        favicon_path = os.path.join(frontend_dist_path, "favicon.svg")
+        if os.path.exists(favicon_path):
+            return FileResponse(favicon_path)
+    raise HTTPException(status_code=404, detail="Not found")
+
 @app.get("/vite.svg")
 async def serve_vite_svg():
     if frontend_available and frontend_dist_path:
         vite_svg_path = os.path.join(frontend_dist_path, "vite.svg")
         if os.path.exists(vite_svg_path):
             return FileResponse(vite_svg_path)
-    raise HTTPException(status_code=404, detail="Not found")
-
-@app.get("/favicon-32x32.png")
-async def serve_favicon_32():
-    if frontend_available and frontend_dist_path:
-        favicon_path = os.path.join(frontend_dist_path, "favicon-32x32.png")
-        if os.path.exists(favicon_path):
-            return FileResponse(favicon_path)
-    raise HTTPException(status_code=404, detail="Not found")
-
-@app.get("/favicon-16x16.png")
-async def serve_favicon_16():
-    if frontend_available and frontend_dist_path:
-        favicon_path = os.path.join(frontend_dist_path, "favicon-16x16.png")
-        if os.path.exists(favicon_path):
-            return FileResponse(favicon_path)
-    raise HTTPException(status_code=404, detail="Not found")
-
-@app.get("/apple-touch-icon.png")
-async def serve_apple_icon():
-    if frontend_available and frontend_dist_path:
-        icon_path = os.path.join(frontend_dist_path, "apple-touch-icon.png")
-        if os.path.exists(icon_path):
-            return FileResponse(icon_path)
     raise HTTPException(status_code=404, detail="Not found")
 
 @app.get("/site.webmanifest")
