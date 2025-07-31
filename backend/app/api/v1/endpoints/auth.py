@@ -3,7 +3,6 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
-from app.models.database import User
 from app.models.user import UserCreate, UserLogin, UserResponse
 from app.services.user_service import UserService
 from app.core.auth import create_access_token, verify_token, get_current_user
@@ -121,12 +120,12 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
         )
 
 @router.post("/logout")
-async def logout(current_user: User = Depends(get_current_user)):
+async def logout(current_user = Depends(get_current_user)):
     """Logout user (in a real app, you'd blacklist the token)"""
     return {"message": "Successfully logged out"}
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
+async def get_current_user_info(current_user = Depends(get_current_user)):
     """Get current user information"""
     return UserResponse(
         id=current_user.id,
