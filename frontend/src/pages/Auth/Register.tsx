@@ -37,9 +37,13 @@ const Register: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await register(formData.email, formData.fullName, formData.password);
-      toast.success('Account created successfully!');
-      navigate('/dashboard');
+      const success = await register(formData.email, formData.fullName, formData.password);
+      if (success) {
+        toast.success('Account created successfully!');
+        navigate('/dashboard');
+      } else {
+        // Registration failed, error message already shown by AuthContext
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {

@@ -22,9 +22,13 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      toast.success('Welcome back!');
-      navigate(from, { replace: true });
+      const success = await login(email, password);
+      if (success) {
+        toast.success('Welcome back!');
+        navigate(from, { replace: true });
+      } else {
+        // Login failed, error message already shown by AuthContext
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Login failed. Please try again.');
     } finally {
