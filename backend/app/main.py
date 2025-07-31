@@ -12,6 +12,20 @@ from jose import JWTError, jwt
 import bcrypt
 from pathlib import Path
 
+# Try to import database components with fallback
+try:
+    from sqlalchemy.orm import Session
+    from app.core.database import get_db, init_db
+    from app.models.database import User as DBUser, Document as DBDocument
+    from app.core.config import settings
+    DATABASE_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"Database imports failed: {e}")
+    DATABASE_AVAILABLE = False
+    # Fallback to in-memory storage
+    users_db = {}
+    documents_db = {}
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,10 +44,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# In-memory storage (temporary until database is properly configured)
-users_db = {}
-documents_db = {}
 
 # JWT Configuration
 SECRET_KEY = "your-secret-key-change-in-production"
@@ -99,7 +109,10 @@ def verify_password(password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 # Authentication dependency
-async def get_current_user(token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", ""))):
+async def get_current_user(
+    token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", "")),
+    db: Session = Depends(get_db) if DATABASE_AVAILABLE else None
+):
     if not token:
         raise HTTPException(
             status_code=401,
@@ -120,106 +133,198 @@ async def get_current_user(token: str = Depends(lambda x: x.headers.get("authori
             detail="Invalid token"
         )
     
-    # Find user by ID
-    user = None
-    for email, user_data in users_db.items():
-        if user_data["id"] == user_id:
-            user = user_data
-            break
-    
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="User not found"
-        )
-    
-    return user
+    if DATABASE_AVAILABLE and db:
+        # Get user from database
+        user = db.query(DBUser).filter(DBUser.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="User not found"
+            )
+        return user
+    else:
+        # Fallback to in-memory storage
+        user = None
+        for email, user_data in users_db.items():
+            if user_data["id"] == user_id:
+                user = user_data
+                break
+        
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="User not found"
+            )
+        return user
 
 # Authentication endpoints
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
-async def register(user_data: UserCreate):
+async def register(user_data: UserCreate, db: Session = Depends(get_db) if DATABASE_AVAILABLE else None):
     try:
-        # Check if user already exists
-        if user_data.email in users_db:
-            raise HTTPException(
-                status_code=400,
-                detail="Email already registered"
-            )
-        
-        # Create new user
-        user_id = str(uuid.uuid4())
-        hashed_password = hash_password(user_data.password)
-        
-        user = {
-            "id": user_id,
-            "email": user_data.email,
-            "full_name": user_data.full_name,
-            "hashed_password": hashed_password,
-            "is_active": True
-        }
-        
-        users_db[user_data.email] = user
-        
-        # Create access token
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user_id}, expires_delta=access_token_expires
-        )
-        
-        return TokenResponse(
-            access_token=access_token,
-            token_type="bearer",
-            user=UserResponse(
+        if DATABASE_AVAILABLE and db:
+            # Check if user already exists in database
+            existing_user = db.query(DBUser).filter(DBUser.email == user_data.email).first()
+            if existing_user:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Email already registered"
+                )
+            
+            # Create new user in database
+            user_id = str(uuid.uuid4())
+            hashed_password = hash_password(user_data.password)
+            
+            db_user = DBUser(
                 id=user_id,
                 email=user_data.email,
+                username=user_data.email.split('@')[0],  # Use email prefix as username
                 full_name=user_data.full_name,
-                is_active=True
+                hashed_password=hashed_password,
+                is_active=True,
+                is_verified=True
             )
-        )
+            
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+            
+            # Create access token
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(
+                data={"sub": user_id}, expires_delta=access_token_expires
+            )
+            
+            return TokenResponse(
+                access_token=access_token,
+                token_type="bearer",
+                user=UserResponse(
+                    id=user_id,
+                    email=user_data.email,
+                    full_name=user_data.full_name,
+                    is_active=True
+                )
+            )
+        else:
+            # Fallback to in-memory storage
+            if user_data.email in users_db:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Email already registered"
+                )
+            
+            # Create new user
+            user_id = str(uuid.uuid4())
+            hashed_password = hash_password(user_data.password)
+            
+            user = {
+                "id": user_id,
+                "email": user_data.email,
+                "full_name": user_data.full_name,
+                "hashed_password": hashed_password,
+                "is_active": True
+            }
+            
+            users_db[user_data.email] = user
+            
+            # Create access token
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(
+                data={"sub": user_id}, expires_delta=access_token_expires
+            )
+            
+            return TokenResponse(
+                access_token=access_token,
+                token_type="bearer",
+                user=UserResponse(
+                    id=user_id,
+                    email=user_data.email,
+                    full_name=user_data.full_name,
+                    is_active=True
+                )
+            )
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Registration failed", error=str(e))
+        if DATABASE_AVAILABLE and db:
+            db.rollback()
         raise HTTPException(
             status_code=500,
             detail="Registration failed"
         )
 
 @app.post("/api/v1/auth/login", response_model=TokenResponse)
-async def login(user_data: UserLogin):
+async def login(user_data: UserLogin, db: Session = Depends(get_db) if DATABASE_AVAILABLE else None):
     try:
-        # Check if user exists
-        user = users_db.get(user_data.email)
-        if not user:
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect email or password"
+        if DATABASE_AVAILABLE and db:
+            # Check if user exists in database
+            user = db.query(DBUser).filter(DBUser.email == user_data.email).first()
+            if not user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Incorrect email or password"
+                )
+            
+            # Verify password
+            if not verify_password(user_data.password, user.hashed_password):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Incorrect email or password"
+                )
+            
+            # Update last login
+            user.last_login = datetime.utcnow()
+            db.commit()
+            
+            # Create access token
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(
+                data={"sub": user.id}, expires_delta=access_token_expires
             )
-        
-        # Verify password
-        if not verify_password(user_data.password, user["hashed_password"]):
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect email or password"
+            
+            return TokenResponse(
+                access_token=access_token,
+                token_type="bearer",
+                user=UserResponse(
+                    id=user.id,
+                    email=user.email,
+                    full_name=user.full_name,
+                    is_active=user.is_active
+                )
             )
-        
-        # Create access token
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user["id"]}, expires_delta=access_token_expires
-        )
-        
-        return TokenResponse(
-            access_token=access_token,
-            token_type="bearer",
-            user=UserResponse(
-                id=user["id"],
-                email=user["email"],
-                full_name=user["full_name"],
-                is_active=user["is_active"]
+        else:
+            # Fallback to in-memory storage
+            user = users_db.get(user_data.email)
+            if not user:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Incorrect email or password"
+                )
+            
+            # Verify password
+            if not verify_password(user_data.password, user["hashed_password"]):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Incorrect email or password"
+                )
+            
+            # Create access token
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(
+                data={"sub": user["id"]}, expires_delta=access_token_expires
             )
-        )
+            
+            return TokenResponse(
+                access_token=access_token,
+                token_type="bearer",
+                user=UserResponse(
+                    id=user["id"],
+                    email=user["email"],
+                    full_name=user["full_name"],
+                    is_active=user["is_active"]
+                )
+            )
         
     except HTTPException:
         raise
@@ -232,18 +337,27 @@ async def login(user_data: UserLogin):
 
 @app.get("/api/v1/auth/me", response_model=UserResponse)
 async def get_current_user_info(current_user = Depends(get_current_user)):
-    return UserResponse(
-        id=current_user["id"],
-        email=current_user["email"],
-        full_name=current_user["full_name"],
-        is_active=current_user["is_active"]
-    )
+    if DATABASE_AVAILABLE:
+        return UserResponse(
+            id=current_user.id,
+            email=current_user.email,
+            full_name=current_user.full_name,
+            is_active=current_user.is_active
+        )
+    else:
+        return UserResponse(
+            id=current_user["id"],
+            email=current_user["email"],
+            full_name=current_user["full_name"],
+            is_active=current_user["is_active"]
+        )
 
 # Document upload endpoint
 @app.post("/api/v1/documents/upload", response_model=DocumentResponse)
 async def upload_document(
     file: UploadFile = File(...),
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db) if DATABASE_AVAILABLE else None
 ):
     try:
         # Validate file type
@@ -263,22 +377,52 @@ async def upload_document(
                 detail="File size too large. Maximum size is 10MB"
             )
         
-        # Create document record
-        document_id = str(uuid.uuid4())
-        document = Document(
-            id=document_id,
-            filename=file.filename,
-            file_size=file.size or 0,
-            status="uploaded",
-            created_at=datetime.utcnow().isoformat(),
-            redactions_count=0
-        )
-        
-        # Store document (in memory for now)
-        documents_db[document_id] = {
-            "document": document,
-            "user_id": current_user["id"]
-        }
+        if DATABASE_AVAILABLE and db:
+            # Create document record in database
+            document_id = str(uuid.uuid4())
+            stored_filename = f"{document_id}_{file.filename}"
+            
+            db_document = DBDocument(
+                id=document_id,
+                user_id=current_user.id,
+                original_filename=file.filename,
+                stored_filename=stored_filename,
+                file_size=file.size or 0,
+                file_type=file_extension,
+                s3_key=f"documents/{document_id}/{stored_filename}",
+                status="uploaded"
+            )
+            
+            db.add(db_document)
+            db.commit()
+            db.refresh(db_document)
+            
+            # Convert to response model
+            document = Document(
+                id=document_id,
+                filename=file.filename,
+                file_size=file.size or 0,
+                status="uploaded",
+                created_at=db_document.created_at.isoformat(),
+                redactions_count=0
+            )
+        else:
+            # Fallback to in-memory storage
+            document_id = str(uuid.uuid4())
+            document = Document(
+                id=document_id,
+                filename=file.filename,
+                file_size=file.size or 0,
+                status="uploaded",
+                created_at=datetime.utcnow().isoformat(),
+                redactions_count=0
+            )
+            
+            # Store document (in memory for now)
+            documents_db[document_id] = {
+                "document": document,
+                "user_id": current_user["id"]
+            }
         
         return DocumentResponse(
             success=True,
@@ -290,6 +434,8 @@ async def upload_document(
         raise
     except Exception as e:
         logger.error("Document upload failed", error=str(e))
+        if DATABASE_AVAILABLE and db:
+            db.rollback()
         raise HTTPException(
             status_code=500,
             detail="Failed to upload document"
@@ -297,18 +443,42 @@ async def upload_document(
 
 # Get documents endpoint
 @app.get("/api/v1/documents/")
-async def get_documents(current_user = Depends(get_current_user)):
+async def get_documents(
+    current_user = Depends(get_current_user), 
+    db: Session = Depends(get_db) if DATABASE_AVAILABLE else None
+):
     try:
-        # Get user's documents
-        user_documents = []
-        for doc_id, doc_data in documents_db.items():
-            if doc_data["user_id"] == current_user["id"]:
-                user_documents.append(doc_data["document"])
+        if DATABASE_AVAILABLE and db:
+            # Get user's documents from database
+            db_documents = db.query(DBDocument).filter(DBDocument.user_id == current_user.id).all()
+            
+            # Convert to response models
+            documents = []
+            for db_doc in db_documents:
+                # Count redactions for this document (placeholder for now)
+                redactions_count = 0  # We'll implement proper redaction counting later
+                
+                document = Document(
+                    id=db_doc.id,
+                    filename=db_doc.original_filename,
+                    file_size=db_doc.file_size,
+                    status=db_doc.status,
+                    created_at=db_doc.created_at.isoformat(),
+                    redactions_count=redactions_count
+                )
+                documents.append(document)
+        else:
+            # Fallback to in-memory storage
+            user_documents = []
+            for doc_id, doc_data in documents_db.items():
+                if doc_data["user_id"] == current_user["id"]:
+                    user_documents.append(doc_data["document"])
+            documents = user_documents
         
         return {
             "success": True,
             "message": "Documents retrieved successfully",
-            "documents": user_documents
+            "documents": documents
         }
         
     except HTTPException:
@@ -340,13 +510,16 @@ async def startup_event():
     global frontend_available, frontend_dist_path
     logger.info("Starting AutoRedactAI application")
     
-    # Initialize database
-    # try:
-    #     init_db()
-    #     logger.info("Database initialized successfully")
-    # except Exception as e:
-    #     logger.error(f"Database initialization failed: {e}")
-    #     # Continue without database for now
+    # Initialize database if available
+    if DATABASE_AVAILABLE:
+        try:
+            init_db()
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            logger.error(f"Database initialization failed: {e}")
+            # Continue without database
+    else:
+        logger.info("Running with in-memory storage (database not available)")
     
     try:
         # Check for frontend files - try multiple possible paths
