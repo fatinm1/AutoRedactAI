@@ -2,36 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AutoRedactAI - Document Privacy Assistant</title>
-    <meta name="description" content="AI-powered document redaction platform for privacy and compliance" />
-    <meta name="keywords" content="document redaction, AI, privacy, compliance, PDF, DOCX" />
+    <title>AutoRedactAI - Intelligent Document Redaction</title>
+    <meta name="description" content="AI-powered document redaction platform for sensitive data protection" />
+    <meta name="keywords" content="document redaction, AI, privacy, security, PDF processing" />
+    <meta name="author" content="AutoRedactAI" />
     
-    <!-- Preconnect to external domains -->
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="AutoRedactAI" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="AutoRedactAI - Intelligent Document Redaction" />
+    <meta property="og:description" content="AI-powered document redaction platform for sensitive data protection" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://autoredactai-production.up.railway.app" />
+    
+    <!-- Twitter Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AutoRedactAI - Intelligent Document Redaction" />
+    <meta name="twitter:description" content="AI-powered document redaction platform for sensitive data protection" />
+    
+    <!-- Preload critical resources -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     
-    <!-- Open Graph tags -->
-    <meta property="og:title" content="AutoRedactAI - Document Privacy Assistant" />
-    <meta property="og:description" content="AI-powered document redaction platform for privacy and compliance" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://autoredact.ai" />
-    
-    <!-- Twitter Card tags -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="AutoRedactAI - Document Privacy Assistant" />
-    <meta name="twitter:description" content="AI-powered document redaction platform for privacy and compliance" />
-    
-    <!-- Theme color -->
-    <meta name="theme-color" content="#0ea5e9" />
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <!-- Cache-busting version -->
+    <meta name="version" content="1.0.1" />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx?v=1.0.1"></script>
   </body>
 </html> 
