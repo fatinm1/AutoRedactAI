@@ -37,13 +37,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const token = localStorage.getItem('token');
       if (token && authService.isAuthenticated()) {
-        const currentUser = await authService.getCurrentUser();
-        setUser(currentUser);
+        try {
+          const currentUser = await authService.getCurrentUser();
+          setUser(currentUser);
+        } catch (error) {
+          console.error('Failed to get current user:', error);
+          // Don't clear token immediately, let the user try to use the app
+          // The response interceptor will handle 401 errors
+        }
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      // Clear invalid token
-      localStorage.removeItem('token');
     } finally {
       setLoading(false);
     }
