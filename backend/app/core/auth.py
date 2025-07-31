@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
-from app.models.user import User
+from app.models.database import User
 from app.services.user_service import UserService
 from app.core.database import get_db
 from sqlalchemy.orm import Session
