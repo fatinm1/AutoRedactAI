@@ -109,10 +109,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 # Authentication dependency
-async def get_current_user(
-    token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", "")),
-    db: Session = Depends(get_db) if DATABASE_AVAILABLE else None
-):
+async def get_current_user(token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", ""))):
     if not token:
         raise HTTPException(
             status_code=401,
@@ -133,29 +130,33 @@ async def get_current_user(
             detail="Invalid token"
         )
     
-    if DATABASE_AVAILABLE and db:
-        # Get user from database
-        user = db.query(DBUser).filter(DBUser.id == user_id).first()
-        if not user:
-            raise HTTPException(
-                status_code=401,
-                detail="User not found"
-            )
-        return user
-    else:
-        # Fallback to in-memory storage
-        user = None
-        for email, user_data in users_db.items():
-            if user_data["id"] == user_id:
-                user = user_data
-                break
-        
-        if not user:
-            raise HTTPException(
-                status_code=401,
-                detail="User not found"
-            )
-        return user
+    if DATABASE_AVAILABLE:
+        # Try to get user from database
+        try:
+            from sqlalchemy.orm import Session
+            from app.core.database import get_db
+            db = next(get_db())
+            user = db.query(DBUser).filter(DBUser.id == user_id).first()
+            if user:
+                return user
+        except Exception as e:
+            logger.warning(f"Database lookup failed: {e}")
+            # Fall through to in-memory lookup
+    
+    # Fallback to in-memory storage
+    user = None
+    for email, user_data in users_db.items():
+        if user_data["id"] == user_id:
+            user = user_data
+            break
+    
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+    
+    return user
 
 # Authentication endpoints
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
@@ -349,7 +350,9 @@ async def login_in_memory(user_data: UserLogin):
 
 @app.get("/api/v1/auth/me", response_model=UserResponse)
 async def get_current_user_info(current_user = Depends(get_current_user)):
-    if DATABASE_AVAILABLE:
+    # Check if current_user is a database object or dict
+    if hasattr(current_user, 'id'):
+        # Database user object
         return UserResponse(
             id=current_user.id,
             email=current_user.email,
@@ -357,6 +360,7 @@ async def get_current_user_info(current_user = Depends(get_current_user)):
             is_active=current_user.is_active
         )
     else:
+        # In-memory user dict
         return UserResponse(
             id=current_user["id"],
             email=current_user["email"],
