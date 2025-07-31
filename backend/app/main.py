@@ -1,9 +1,15 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 import os
 import structlog
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+import bcrypt
+import uuid
 
 logger = structlog.get_logger()
 
@@ -21,6 +27,218 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# JWT Configuration
+SECRET_KEY = "your-secret-key-here"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Simple user storage (in production, use a database)
+users_db = {}
+
+# Pydantic models for authentication
+class UserCreate(BaseModel):
+    email: str
+    full_name: str
+    password: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    is_active: bool
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """Create JWT access token"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_token(token: str) -> Optional[dict]:
+    """Verify JWT token and return payload"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+def hash_password(password: str) -> str:
+    """Hash password using bcrypt"""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def verify_password(password: str, hashed_password: str) -> bool:
+    """Verify password against hash"""
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
+
+# Authentication endpoints
+@app.post("/api/v1/auth/register", response_model=TokenResponse)
+async def register(user_data: UserCreate):
+    """Register a new user"""
+    try:
+        # Check if user already exists
+        if user_data.email in users_db:
+            raise HTTPException(
+                status_code=400,
+                detail="User with this email already exists"
+            )
+        
+        # Create new user
+        user_id = str(uuid.uuid4())
+        hashed_password = hash_password(user_data.password)
+        
+        user = {
+            "id": user_id,
+            "email": user_data.email,
+            "full_name": user_data.full_name,
+            "hashed_password": hashed_password,
+            "is_active": True
+        }
+        
+        users_db[user_data.email] = user
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": user_id},
+            expires_delta=timedelta(minutes=30)
+        )
+        
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user=UserResponse(
+                id=user_id,
+                email=user["email"],
+                full_name=user["full_name"],
+                is_active=user["is_active"]
+            )
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Registration failed", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Registration failed"
+        )
+
+@app.post("/api/v1/auth/login", response_model=TokenResponse)
+async def login(user_data: UserLogin):
+    """Login user"""
+    try:
+        logger.info("Login attempt", email=user_data.email)
+        
+        # Check if user exists
+        if user_data.email not in users_db:
+            logger.warning("User not found", email=user_data.email)
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect email or password"
+            )
+        
+        user = users_db[user_data.email]
+        logger.info("User found", user_id=user["id"], email=user["email"])
+        
+        # Verify password
+        if not verify_password(user_data.password, user["hashed_password"]):
+            logger.warning("Authentication failed", email=user_data.email)
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect email or password"
+            )
+        
+        logger.info("Authentication successful", user_id=user["id"])
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": user["id"]},
+            expires_delta=timedelta(minutes=30)
+        )
+        
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user=UserResponse(
+                id=user["id"],
+                email=user["email"],
+                full_name=user["full_name"],
+                is_active=user["is_active"]
+            )
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Login failed", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Login failed"
+        )
+
+@app.get("/api/v1/auth/me", response_model=UserResponse)
+async def get_current_user_info(token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", ""))):
+    """Get current user information"""
+    try:
+        payload = verify_token(token)
+        if not payload:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+        
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+        
+        # Find user by ID
+        user = None
+        for email, user_data in users_db.items():
+            if user_data["id"] == user_id:
+                user = user_data
+                break
+        
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="User not found"
+            )
+        
+        return UserResponse(
+            id=user["id"],
+            email=user["email"],
+            full_name=user["full_name"],
+            is_active=user["is_active"]
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Get user info failed", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to get user info"
+        )
 
 # Health check endpoint
 @app.get("/health")
