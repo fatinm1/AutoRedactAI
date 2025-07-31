@@ -1,42 +1,45 @@
-from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
 import os
-import structlog
-from pydantic import BaseModel
-from typing import Optional
+import uuid
+import logging
 from datetime import datetime, timedelta
+from typing import Optional
+from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from jose import JWTError, jwt
 import bcrypt
-import uuid
+from pathlib import Path
 
-logger = structlog.get_logger()
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="AutoRedactAI",
-    version="1.0.0",
-    description="AI-Powered Document Redaction System"
+    description="AI-powered document redaction platform",
+    version="1.0.0"
 )
 
-# CORS middleware
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins="*",  # Simplified for now
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# In-memory user database (replace with real database in production)
+users_db = {}
+
 # JWT Configuration
-SECRET_KEY = "your-secret-key-here"
+SECRET_KEY = "your-secret-key-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Simple user storage (in production, use a database)
-users_db = {}
-
-# Pydantic models for authentication
+# Pydantic models
 class UserCreate(BaseModel):
     email: str
     full_name: str
@@ -57,8 +60,24 @@ class TokenResponse(BaseModel):
     token_type: str
     user: UserResponse
 
+class Document(BaseModel):
+    id: str
+    filename: str
+    file_size: int
+    status: str
+    created_at: str
+    redactions_count: int
+
+class DocumentResponse(BaseModel):
+    success: bool
+    message: str
+    document: Document
+
+# In-memory document storage (replace with real database in production)
+documents_db = {}
+
+# JWT functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """Create JWT access token"""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -69,7 +88,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 def verify_token(token: str) -> Optional[dict]:
-    """Verify JWT token and return payload"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
@@ -77,27 +95,20 @@ def verify_token(token: str) -> Optional[dict]:
         return None
 
 def hash_password(password: str) -> str:
-    """Hash password using bcrypt"""
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    """Verify password against hash"""
-    try:
-        return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
-    except Exception:
-        return False
+    return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 # Authentication endpoints
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
-    """Register a new user"""
     try:
         # Check if user already exists
         if user_data.email in users_db:
             raise HTTPException(
                 status_code=400,
-                detail="User with this email already exists"
+                detail="Email already registered"
             )
         
         # Create new user
@@ -115,9 +126,9 @@ async def register(user_data: UserCreate):
         users_db[user_data.email] = user
         
         # Create access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user_id},
-            expires_delta=timedelta(minutes=30)
+            data={"sub": user_id}, expires_delta=access_token_expires
         )
         
         return TokenResponse(
@@ -125,9 +136,9 @@ async def register(user_data: UserCreate):
             token_type="bearer",
             user=UserResponse(
                 id=user_id,
-                email=user["email"],
-                full_name=user["full_name"],
-                is_active=user["is_active"]
+                email=user_data.email,
+                full_name=user_data.full_name,
+                is_active=True
             )
         )
         
@@ -142,35 +153,26 @@ async def register(user_data: UserCreate):
 
 @app.post("/api/v1/auth/login", response_model=TokenResponse)
 async def login(user_data: UserLogin):
-    """Login user"""
     try:
-        logger.info("Login attempt", email=user_data.email)
-        
         # Check if user exists
-        if user_data.email not in users_db:
-            logger.warning("User not found", email=user_data.email)
+        user = users_db.get(user_data.email)
+        if not user:
             raise HTTPException(
                 status_code=401,
                 detail="Incorrect email or password"
             )
-        
-        user = users_db[user_data.email]
-        logger.info("User found", user_id=user["id"], email=user["email"])
         
         # Verify password
         if not verify_password(user_data.password, user["hashed_password"]):
-            logger.warning("Authentication failed", email=user_data.email)
             raise HTTPException(
                 status_code=401,
                 detail="Incorrect email or password"
             )
         
-        logger.info("Authentication successful", user_id=user["id"])
-        
         # Create access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user["id"]},
-            expires_delta=timedelta(minutes=30)
+            data={"sub": user["id"]}, expires_delta=access_token_expires
         )
         
         return TokenResponse(
@@ -195,8 +197,13 @@ async def login(user_data: UserLogin):
 
 @app.get("/api/v1/auth/me", response_model=UserResponse)
 async def get_current_user_info(token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", ""))):
-    """Get current user information"""
     try:
+        if not token:
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated"
+            )
+        
         payload = verify_token(token)
         if not payload:
             raise HTTPException(
@@ -238,6 +245,129 @@ async def get_current_user_info(token: str = Depends(lambda x: x.headers.get("au
         raise HTTPException(
             status_code=500,
             detail="Failed to get user info"
+        )
+
+# Document upload endpoint
+@app.post("/api/v1/documents/upload", response_model=DocumentResponse)
+async def upload_document(
+    file: UploadFile = File(...),
+    token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", ""))
+):
+    try:
+        # Verify authentication
+        if not token:
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated"
+            )
+        
+        payload = verify_token(token)
+        if not payload:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+        
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+        
+        # Validate file type
+        allowed_types = [".pdf", ".doc", ".docx", ".txt", ".jpg", ".jpeg", ".png", ".tiff"]
+        file_extension = file.filename.lower().split(".")[-1] if "." in file.filename else ""
+        
+        if f".{file_extension}" not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File type not supported. Allowed types: {', '.join(allowed_types)}"
+            )
+        
+        # Validate file size (10MB limit)
+        if file.size and file.size > 10 * 1024 * 1024:
+            raise HTTPException(
+                status_code=400,
+                detail="File size too large. Maximum size is 10MB"
+            )
+        
+        # Create document record
+        document_id = str(uuid.uuid4())
+        document = Document(
+            id=document_id,
+            filename=file.filename,
+            file_size=file.size or 0,
+            status="uploaded",
+            created_at=datetime.utcnow().isoformat(),
+            redactions_count=0
+        )
+        
+        # Store document (in memory for now)
+        documents_db[document_id] = {
+            "document": document,
+            "user_id": user_id
+        }
+        
+        return DocumentResponse(
+            success=True,
+            message="Document uploaded successfully",
+            document=document
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Document upload failed", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to upload document"
+        )
+
+# Get documents endpoint
+@app.get("/api/v1/documents/")
+async def get_documents(token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", ""))):
+    try:
+        # Verify authentication
+        if not token:
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated"
+            )
+        
+        payload = verify_token(token)
+        if not payload:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+        
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+        
+        # Get user's documents
+        user_documents = []
+        for doc_id, doc_data in documents_db.items():
+            if doc_data["user_id"] == user_id:
+                user_documents.append(doc_data["document"])
+        
+        return {
+            "success": True,
+            "message": "Documents retrieved successfully",
+            "documents": user_documents
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Get documents failed", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to get documents"
         )
 
 # Health check endpoint
