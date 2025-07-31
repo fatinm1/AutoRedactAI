@@ -304,14 +304,8 @@ async def startup_event():
             logger.warning("Frontend dist not found in any expected location")
             logger.info("Running in API-only mode")
         
-        # Try to import and add API routes (but don't fail if they don't work)
-        try:
-            from app.api.v1.api import api_router
-            app.include_router(api_router, prefix="/api/v1")
-            logger.info("API routes loaded successfully")
-        except Exception as e:
-            logger.warning(f"Failed to load API routes: {e}")
-            logger.info("Running in basic mode without API routes")
+        # Authentication endpoints are now directly in main.py - no need to load external routes
+        logger.info("Authentication endpoints loaded directly in main.py")
         
     except Exception as e:
         logger.error("Failed to initialize application", error=str(e))
