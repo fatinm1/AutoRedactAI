@@ -100,6 +100,43 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
 
+# Authentication dependency
+async def get_current_user(token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", ""))):
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated"
+        )
+    
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+    
+    # Find user by ID
+    user = None
+    for email, user_data in users_db.items():
+        if user_data["id"] == user_id:
+            user = user_data
+            break
+    
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+    
+    return user
+
 # Authentication endpoints
 @app.post("/api/v1/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
@@ -196,85 +233,21 @@ async def login(user_data: UserLogin):
         )
 
 @app.get("/api/v1/auth/me", response_model=UserResponse)
-async def get_current_user_info(token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", ""))):
-    try:
-        if not token:
-            raise HTTPException(
-                status_code=401,
-                detail="Not authenticated"
-            )
-        
-        payload = verify_token(token)
-        if not payload:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
-        
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
-        
-        # Find user by ID
-        user = None
-        for email, user_data in users_db.items():
-            if user_data["id"] == user_id:
-                user = user_data
-                break
-        
-        if not user:
-            raise HTTPException(
-                status_code=401,
-                detail="User not found"
-            )
-        
-        return UserResponse(
-            id=user["id"],
-            email=user["email"],
-            full_name=user["full_name"],
-            is_active=user["is_active"]
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Get user info failed", error=str(e))
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to get user info"
-        )
+async def get_current_user_info(current_user = Depends(get_current_user)):
+    return UserResponse(
+        id=current_user["id"],
+        email=current_user["email"],
+        full_name=current_user["full_name"],
+        is_active=current_user["is_active"]
+    )
 
 # Document upload endpoint
 @app.post("/api/v1/documents/upload", response_model=DocumentResponse)
 async def upload_document(
     file: UploadFile = File(...),
-    token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", ""))
+    current_user = Depends(get_current_user)
 ):
     try:
-        # Verify authentication
-        if not token:
-            raise HTTPException(
-                status_code=401,
-                detail="Not authenticated"
-            )
-        
-        payload = verify_token(token)
-        if not payload:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
-        
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
-        
         # Validate file type
         allowed_types = [".pdf", ".doc", ".docx", ".txt", ".jpg", ".jpeg", ".png", ".tiff"]
         file_extension = file.filename.lower().split(".")[-1] if "." in file.filename else ""
@@ -306,7 +279,7 @@ async def upload_document(
         # Store document (in memory for now)
         documents_db[document_id] = {
             "document": document,
-            "user_id": user_id
+            "user_id": current_user["id"]
         }
         
         return DocumentResponse(
@@ -326,33 +299,12 @@ async def upload_document(
 
 # Get documents endpoint
 @app.get("/api/v1/documents/")
-async def get_documents(token: str = Depends(lambda x: x.headers.get("authorization", "").replace("Bearer ", ""))):
+async def get_documents(current_user = Depends(get_current_user)):
     try:
-        # Verify authentication
-        if not token:
-            raise HTTPException(
-                status_code=401,
-                detail="Not authenticated"
-            )
-        
-        payload = verify_token(token)
-        if not payload:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
-        
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
-        
         # Get user's documents
         user_documents = []
         for doc_id, doc_data in documents_db.items():
-            if doc_data["user_id"] == user_id:
+            if doc_data["user_id"] == current_user["id"]:
                 user_documents.append(doc_data["document"])
         
         return {
