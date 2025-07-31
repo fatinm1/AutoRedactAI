@@ -16,7 +16,7 @@ from pathlib import Path
 try:
     from sqlalchemy.orm import Session
     from app.core.database import get_db, init_db
-    from app.models.database import User as DBUser, Document as DBDocument
+    from app.models.database import DBUser, DBDocument
     from app.core.config import settings
     DATABASE_AVAILABLE = True
 except ImportError as e:
