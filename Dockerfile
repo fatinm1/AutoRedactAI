@@ -4,6 +4,9 @@ FROM node:18-alpine AS frontend-builder
 # Set work directory for frontend
 WORKDIR /app/frontend
 
+# Set environment variables for frontend build
+ENV VITE_API_URL=https://autoredactai-production.up.railway.app
+
 # Copy frontend package files
 COPY frontend/package*.json ./
 
