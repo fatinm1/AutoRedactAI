@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
-from app.models.database import User
+from app.models.database import DBUser as User
 from app.models.user import UserCreate
 import structlog
 

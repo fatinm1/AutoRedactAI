@@ -31,9 +31,9 @@ import './styles/globals.css';
 function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <Router>
-          <div className="App">
+    <AuthProvider>
+      <Router>
+        <div className="App">
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<Landing />} />

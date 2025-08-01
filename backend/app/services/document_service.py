@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from app.models.database import Document, Redaction, AuditLog
+from app.models.database import DBDocument as Document, Redaction, AuditLog
 import uuid
 from datetime import datetime, timedelta
 import structlog

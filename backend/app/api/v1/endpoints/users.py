@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from app.models.database import User
+from app.models.database import DBUser as User
 from app.models.user import UserResponse
 from app.services.user_service import UserService
 from app.core.auth import get_current_user

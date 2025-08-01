@@ -54,7 +54,7 @@ def init_db():
     """Initialize database tables"""
     try:
         # Import the Base class from models.database
-        from app.models.database import Base, User, Document, Redaction, AuditLog, ProcessingJob, ExportJob, TeamCollaboration, ComplianceReport
+        from app.models.database import Base, DBUser, DBDocument, Redaction, AuditLog, ProcessingJob, ExportJob, TeamCollaboration, ComplianceReport
         
         # Create all tables
         Base.metadata.create_all(bind=engine)
