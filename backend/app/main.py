@@ -25,8 +25,15 @@ try:
     from app.core.database import get_db, init_db
     logging.info("Database core functions imported successfully")
     
-    from app.models.database import DBUser, DBDocument
-    logging.info("Database models imported successfully")
+    # Try importing database models directly
+    try:
+        from app.models.database import DBUser, DBDocument
+        logging.info("Database models imported successfully via app.models.database")
+    except ImportError as db_import_error:
+        logging.warning(f"Direct import failed: {db_import_error}")
+        # Try importing from the models package
+        from app.models import DBUser, DBDocument
+        logging.info("Database models imported successfully via app.models")
     
     from app.core.config import settings
     logging.info("Config imported successfully")
