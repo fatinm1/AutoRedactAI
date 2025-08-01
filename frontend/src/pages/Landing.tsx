@@ -15,6 +15,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import Typewriter from '@/components/UI/Typewriter';
+import DarkModeToggle from '@/components/UI/DarkModeToggle';
 
 const Landing: React.FC = () => {
   const features = [
@@ -102,6 +103,7 @@ const Landing: React.FC = () => {
               </span>
             </div>
             <div className="flex items-center space-x-4">
+              <DarkModeToggle />
               <Link to="/login" className="btn-ghost">
                 Sign In
               </Link>

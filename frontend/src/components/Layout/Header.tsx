@@ -12,18 +12,14 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle('dark');
-  };
 
   const handleLogout = () => {
     logout();
@@ -115,7 +111,7 @@ const Header: React.FC = () => {
             >
               <div className="w-8 h-8 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center">
                 <span className="text-white font-semibold text-sm">
-                  {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
+                  {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                 </span>
               </div>
             </motion.button>
@@ -130,7 +126,7 @@ const Header: React.FC = () => {
               >
                 <div className="p-4 border-b border-white/20 dark:border-neutral-700/50">
                   <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                    {user?.full_name || user?.username}
+                    {user?.full_name || user?.email}
                   </p>
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">
                     {user?.email}

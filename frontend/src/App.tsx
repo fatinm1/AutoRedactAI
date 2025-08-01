@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Layout
 import Layout from './components/Layout/Layout';
@@ -27,9 +28,10 @@ import './styles/globals.css';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="App">
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <div className="App">
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<Landing />} />
@@ -83,6 +85,7 @@ function App() {
         </div>
       </Router>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 
