@@ -173,49 +173,9 @@ async def register(user_data: UserCreate):
             detail="Registration failed"
         )
 
-async def register_with_db(user_data: UserCreate, db: Session = Depends(get_db)):
-    # Check if user already exists in database
-    existing_user = db.query(DBUser).filter(DBUser.email == user_data.email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Email already registered"
-        )
-    
-    # Create new user in database
-    user_id = str(uuid.uuid4())
-    hashed_password = hash_password(user_data.password)
-    
-    db_user = DBUser(
-        id=user_id,
-        email=user_data.email,
-        username=user_data.email.split('@')[0],  # Use email prefix as username
-        full_name=user_data.full_name,
-        hashed_password=hashed_password,
-        is_active=True,
-        is_verified=True
-    )
-    
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    
-    # Create access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user_id}, expires_delta=access_token_expires
-    )
-    
-    return TokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-        user=UserResponse(
-            id=user_id,
-            email=user_data.email,
-            full_name=user_data.full_name,
-            is_active=True
-        )
-    )
+async def register_with_db(user_data: UserCreate):
+    # Database function disabled when DATABASE_AVAILABLE is False
+    raise HTTPException(status_code=503, detail="Database not available")
 
 async def register_in_memory(user_data: UserCreate):
     # Fallback to in-memory storage
@@ -274,42 +234,9 @@ async def login(user_data: UserLogin):
             detail="Login failed"
         )
 
-async def login_with_db(user_data: UserLogin, db: Session = Depends(get_db)):
-    # Check if user exists in database
-    user = db.query(DBUser).filter(DBUser.email == user_data.email).first()
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="Incorrect email or password"
-        )
-    
-    # Verify password
-    if not verify_password(user_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=401,
-            detail="Incorrect email or password"
-        )
-    
-    # Update last login
-    user.last_login = datetime.utcnow()
-    db.commit()
-    
-    # Create access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.id}, expires_delta=access_token_expires
-    )
-    
-    return TokenResponse(
-        access_token=access_token,
-        token_type="bearer",
-        user=UserResponse(
-            id=user.id,
-            email=user.email,
-            full_name=user.full_name,
-            is_active=user.is_active
-        )
-    )
+async def login_with_db(user_data: UserLogin):
+    # Database function disabled when DATABASE_AVAILABLE is False
+    raise HTTPException(status_code=503, detail="Database not available")
 
 async def login_in_memory(user_data: UserLogin):
     # Fallback to in-memory storage
@@ -383,58 +310,9 @@ async def upload_document(file: UploadFile = File(...), current_user = Depends(g
             detail="Failed to upload document"
         )
 
-async def upload_document_with_db(file: UploadFile, current_user, db: Session = Depends(get_db)):
-    # Validate file type
-    allowed_types = [".pdf", ".doc", ".docx", ".txt", ".jpg", ".jpeg", ".png", ".tiff"]
-    file_extension = file.filename.lower().split(".")[-1] if "." in file.filename else ""
-    
-    if f".{file_extension}" not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File type not supported. Allowed types: {', '.join(allowed_types)}"
-        )
-    
-    # Validate file size (10MB limit)
-    if file.size and file.size > 10 * 1024 * 1024:
-        raise HTTPException(
-            status_code=400,
-            detail="File size too large. Maximum size is 10MB"
-        )
-    
-    # Create document record in database
-    document_id = str(uuid.uuid4())
-    stored_filename = f"{document_id}_{file.filename}"
-    
-    db_document = DBDocument(
-        id=document_id,
-        user_id=current_user.id,
-        original_filename=file.filename,
-        stored_filename=stored_filename,
-        file_size=file.size or 0,
-        file_type=file_extension,
-        s3_key=f"documents/{document_id}/{stored_filename}",
-        status="uploaded"
-    )
-    
-    db.add(db_document)
-    db.commit()
-    db.refresh(db_document)
-    
-    # Convert to response model
-    document = Document(
-        id=document_id,
-        filename=file.filename,
-        file_size=file.size or 0,
-        status="uploaded",
-        created_at=db_document.created_at.isoformat(),
-        redactions_count=0
-    )
-    
-    return DocumentResponse(
-        success=True,
-        message="Document uploaded successfully",
-        document=document
-    )
+async def upload_document_with_db(file: UploadFile, current_user):
+    # Database function disabled when DATABASE_AVAILABLE is False
+    raise HTTPException(status_code=503, detail="Database not available")
 
 async def upload_document_in_memory(file: UploadFile, current_user):
     # Validate file type
@@ -496,25 +374,9 @@ async def get_documents(current_user = Depends(get_current_user)):
             detail="Failed to get documents"
         )
 
-async def get_documents_with_db(current_user, db: Session = Depends(get_db)):
-    # Get user's documents from database
-    db_documents = db.query(DBDocument).filter(DBDocument.user_id == current_user.id).all()
-    
-    # Convert to response models
-    documents = []
-    for db_doc in db_documents:
-        # Count redactions for this document (placeholder for now)
-        redactions_count = 0  # We'll implement proper redaction counting later
-        
-        document = Document(
-            id=db_doc.id,
-            filename=db_doc.original_filename,
-            file_size=db_doc.file_size,
-            status=db_doc.status,
-            created_at=db_doc.created_at.isoformat(),
-            redactions_count=redactions_count
-        )
-        documents.append(document)
+async def get_documents_with_db(current_user):
+    # Database function disabled when DATABASE_AVAILABLE is False
+    raise HTTPException(status_code=503, detail="Database not available")
     
     return {
         "success": True,
