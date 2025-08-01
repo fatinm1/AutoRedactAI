@@ -31,9 +31,13 @@ try:
         logging.info("Database models imported successfully via app.models.database")
     except ImportError as db_import_error:
         logging.warning(f"Direct import failed: {db_import_error}")
-        # Try importing from the models package
-        from app.models import DBUser, DBDocument
-        logging.info("Database models imported successfully via app.models")
+        # Try importing with current directory in path
+        import sys
+        import os
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, current_dir)
+        from models.database import DBUser, DBDocument
+        logging.info("Database models imported successfully with relative path")
     
     from app.core.config import settings
     logging.info("Config imported successfully")
