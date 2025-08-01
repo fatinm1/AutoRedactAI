@@ -3,8 +3,8 @@
 # Set default port if not provided
 export PORT=${PORT:-8000}
 
-# Set Python path to include the backend directory
-export PYTHONPATH=/app/backend:$PYTHONPATH
+# Set Python path to include the current directory
+export PYTHONPATH=/app/backend:/app:$PYTHONPATH
 
 # Set API URL for frontend
 if [ -z "$VITE_API_URL" ]; then

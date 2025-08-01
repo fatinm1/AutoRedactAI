@@ -83,45 +83,10 @@ except ImportError as e:
             logging.warning(f"Direct file imports also failed: {e3}")
             logging.warning(f"Error type: {type(e3)}")
             logging.warning(f"Error details: {str(e3)}")
-            
-            # Try one more approach - direct file reading
-            try:
-                logging.info("Trying direct file reading approach...")
-                import importlib.util
-                import os
-                
-                # Get the path to database.py
-                current_file = os.path.abspath(__file__)
-                models_dir = os.path.join(os.path.dirname(current_file), 'models')
-                database_file = os.path.join(models_dir, 'database.py')
-                
-                if os.path.exists(database_file):
-                    logging.info(f"Database file found at: {database_file}")
-                    # Load the module directly
-                    spec = importlib.util.spec_from_file_location("database", database_file)
-                    database_module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(database_module)
-                    
-                    # Extract the classes
-                    DBUser = database_module.DBUser
-                    DBDocument = database_module.DBDocument
-                    
-                    from app.core.database import get_db, init_db
-                    from app.core.config import settings
-                    DATABASE_AVAILABLE = True
-                    logging.info("Database models loaded successfully via direct file reading")
-                else:
-                    logging.error(f"Database file not found at: {database_file}")
-                    raise ImportError("Database file not found")
-                    
-            except Exception as e4:
-                logging.warning(f"Direct file reading also failed: {e4}")
-                logging.warning(f"Error type: {type(e4)}")
-                logging.warning(f"Error details: {str(e4)}")
-                DATABASE_AVAILABLE = False
-                # Fallback to in-memory storage
-                users_db = {}
-                documents_db = {}
+            DATABASE_AVAILABLE = False
+            # Fallback to in-memory storage
+            users_db = {}
+            documents_db = {}
 
 logging.info("Database functionality temporarily disabled - using in-memory storage")
 logging.info("This is a temporary measure to get the application working")
