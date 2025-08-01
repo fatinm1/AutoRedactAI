@@ -13,76 +13,14 @@ from jose import JWTError, jwt
 import bcrypt
 from pathlib import Path
 
-# Try to import database components with fallback
-try:
-    logging.info("Attempting database imports...")
-    logging.info(f"Current working directory: {os.getcwd()}")
-    logging.info(f"Python path: {sys.path}")
-    
-    from sqlalchemy.orm import Session
-    logging.info("SQLAlchemy Session imported successfully")
-    
-    from app.core.database import get_db, init_db
-    logging.info("Database core functions imported successfully")
-    
-    # Try importing database models directly
-    try:
-        from app.models.database import DBUser, DBDocument
-        logging.info("Database models imported successfully via app.models.database")
-    except ImportError as db_import_error:
-        logging.warning(f"Direct import failed: {db_import_error}")
-        # Try importing from the models package
-        from app.models import DBUser, DBDocument
-        logging.info("Database models imported successfully via app.models")
-    
-    from app.core.config import settings
-    logging.info("Config imported successfully")
-    
-    DATABASE_AVAILABLE = True
-    logging.info("Database imports successful")
-except ImportError as e:
-    logging.warning(f"Database imports failed: {e}")
-    logging.warning(f"Error type: {type(e)}")
-    logging.warning(f"Error details: {str(e)}")
-    
-    # Try alternative import paths
-    try:
-        logging.info("Trying alternative import path...")
-        import sys
-        sys.path.insert(0, '/app/backend')
-        logging.info(f"Updated Python path: {sys.path}")
-        
-        from app.core.database import get_db, init_db
-        from app.models.database import DBUser, DBDocument
-        from app.core.config import settings
-        DATABASE_AVAILABLE = True
-        logging.info("Database imports successful with sys.path fix")
-    except ImportError as e2:
-        logging.warning(f"Alternative database imports also failed: {e2}")
-        logging.warning(f"Error type: {type(e2)}")
-        logging.warning(f"Error details: {str(e2)}")
-        
-        # Try direct file imports
-        try:
-            logging.info("Trying direct file imports...")
-            import sys
-            import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-            logging.info(f"Updated Python path for direct import: {sys.path}")
-            
-            from app.core.database import get_db, init_db
-            from app.models.database import DBUser, DBDocument
-            from app.core.config import settings
-            DATABASE_AVAILABLE = True
-            logging.info("Database imports successful with direct file import")
-        except ImportError as e3:
-            logging.warning(f"Direct file imports also failed: {e3}")
-            logging.warning(f"Error type: {type(e3)}")
-            logging.warning(f"Error details: {str(e3)}")
-            DATABASE_AVAILABLE = False
-            # Fallback to in-memory storage
-            users_db = {}
-            documents_db = {}
+# Temporarily disable database imports to get the app working
+DATABASE_AVAILABLE = False
+users_db = {}
+documents_db = {}
+
+logging.info("Database functionality temporarily disabled - using in-memory storage")
+logging.info("This is a temporary measure to get the application working")
+logging.info("Database integration will be re-enabled once the import issues are resolved")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
