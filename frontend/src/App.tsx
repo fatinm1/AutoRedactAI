@@ -9,6 +9,7 @@ import Layout from './components/Layout/Layout';
 
 // Pages
 import Landing from './pages/Landing';
+import Demo from './pages/Demo';
 import Dashboard from './pages/Dashboard';
 import DocumentUpload from './pages/DocumentUpload';
 import DocumentReview from './pages/DocumentReview';
@@ -35,6 +36,7 @@ function App() {
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<Landing />} />
+            <Route path="/demo" element={<Demo />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             

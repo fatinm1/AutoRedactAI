@@ -166,10 +166,10 @@ const Landing: React.FC = () => {
                 Start Free Trial
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
-              <button className="btn-outline text-lg px-8 py-4">
+              <Link to="/demo" className="btn-outline text-lg px-8 py-4">
                 <Globe className="w-5 h-5 mr-2" />
                 Watch Demo
-              </button>
+              </Link>
             </motion.div>
           </motion.div>
         </div>
