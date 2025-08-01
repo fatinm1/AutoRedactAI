@@ -40,7 +40,7 @@ const Register: React.FC = () => {
       const success = await register(formData.email, formData.fullName, formData.password);
       if (success) {
         toast.success('Account created successfully!');
-        navigate('/dashboard');
+        navigate('/app/dashboard');
       } else {
         // Registration failed, error message already shown by AuthContext
       }
