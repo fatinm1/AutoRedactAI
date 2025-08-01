@@ -16,37 +16,37 @@ import { useAuth } from '@/contexts/AuthContext';
 const navigationItems = [
   {
     name: 'Dashboard',
-    href: '/dashboard',
+    href: '/app/dashboard',
     icon: LayoutDashboard,
     description: 'Overview and quick actions'
   },
   {
     name: 'Upload',
-    href: '/upload',
+    href: '/app/upload',
     icon: Upload,
     description: 'Upload and process documents'
   },
   {
     name: 'Review',
-    href: '/review',
+    href: '/app/review',
     icon: FileText,
     description: 'Review and edit redactions'
   },
   {
     name: 'History',
-    href: '/history',
+    href: '/app/history',
     icon: History,
     description: 'View processed documents'
   },
   {
     name: 'Analytics',
-    href: '/analytics',
+    href: '/app/analytics',
     icon: BarChart3,
     description: 'Compliance and usage reports'
   },
   {
     name: 'Settings',
-    href: '/settings',
+    href: '/app/settings',
     icon: Settings,
     description: 'Account and system settings'
   }
@@ -90,15 +90,15 @@ const Sidebar: React.FC = () => {
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center">
             <span className="text-white font-semibold text-sm">
-              {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
+              {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
             </span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
-              {user?.full_name || user?.username}
+              {user?.full_name || user?.email}
             </p>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 capitalize">
-              {user?.role}
+              User
             </p>
           </div>
         </div>

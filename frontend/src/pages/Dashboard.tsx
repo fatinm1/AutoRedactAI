@@ -186,7 +186,7 @@ const Dashboard: React.FC = () => {
             <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">
               Recent Documents
             </h2>
-            <Link to="/history" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">
+            <Link to="/app/history" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">
               View all
             </Link>
           </div>
@@ -231,13 +231,13 @@ const Dashboard: React.FC = () => {
             Quick Actions
           </h2>
           <div className="space-y-3">
-            <Link to="/upload">
+            <Link to="/app/upload">
               <button className="w-full btn-primary">
                 <FileText className="w-4 h-4 mr-2" />
                 Upload New Document
               </button>
             </Link>
-            <Link to="/analytics">
+            <Link to="/app/analytics">
               <button className="w-full btn-outline">
                 <BarChart3 className="w-4 h-4 mr-2" />
                 View Analytics
