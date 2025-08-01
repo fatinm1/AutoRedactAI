@@ -19,12 +19,24 @@ try:
     from app.models.database import DBUser, DBDocument
     from app.core.config import settings
     DATABASE_AVAILABLE = True
+    logging.info("Database imports successful")
 except ImportError as e:
     logging.warning(f"Database imports failed: {e}")
-    DATABASE_AVAILABLE = False
-    # Fallback to in-memory storage
-    users_db = {}
-    documents_db = {}
+    # Try alternative import paths
+    try:
+        import sys
+        sys.path.insert(0, '/app/backend')
+        from app.core.database import get_db, init_db
+        from app.models.database import DBUser, DBDocument
+        from app.core.config import settings
+        DATABASE_AVAILABLE = True
+        logging.info("Database imports successful with sys.path fix")
+    except ImportError as e2:
+        logging.warning(f"Alternative database imports also failed: {e2}")
+        DATABASE_AVAILABLE = False
+        # Fallback to in-memory storage
+        users_db = {}
+        documents_db = {}
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
