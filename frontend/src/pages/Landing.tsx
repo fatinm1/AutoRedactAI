@@ -14,6 +14,7 @@ import {
   Globe,
   Sparkles
 } from 'lucide-react';
+import Typewriter from '@/components/UI/Typewriter';
 
 const Landing: React.FC = () => {
   const features = [
@@ -134,7 +135,17 @@ const Landing: React.FC = () => {
             <h1 className="text-5xl md:text-6xl font-bold text-neutral-900 dark:text-white mb-6">
               Secure Your Documents with
               <span className="block bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                Intelligent AI
+                <Typewriter 
+                  words={[
+                    'Intelligent AI',
+                    'Advanced ML',
+                    'Smart Detection',
+                    'Secure Processing'
+                  ]}
+                  speed={150}
+                  delay={3000}
+                  className="bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent"
+                />
               </span>
             </h1>
             
