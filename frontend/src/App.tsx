@@ -13,6 +13,7 @@ import Demo from './pages/Demo';
 import Dashboard from './pages/Dashboard';
 import DocumentUpload from './pages/DocumentUpload';
 import DocumentReview from './pages/DocumentReview';
+import ReviewList from './pages/ReviewList';
 import DocumentHistory from './pages/DocumentHistory';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
@@ -49,6 +50,7 @@ function App() {
               <Route index element={<Navigate to="/app/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="upload" element={<DocumentUpload />} />
+              <Route path="review" element={<ReviewList />} />
               <Route path="review/:id" element={<DocumentReview />} />
               <Route path="history" element={<DocumentHistory />} />
               <Route path="analytics" element={<Analytics />} />
