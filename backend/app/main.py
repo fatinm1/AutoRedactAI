@@ -555,67 +555,20 @@ async def startup_event():
     global frontend_available, frontend_dist_path
     logger.info("Starting AutoRedactAI application")
     
-    # Initialize database if available
-    if DATABASE_AVAILABLE:
-        try:
-            init_db()
-            logger.info("Database initialized successfully")
-        except Exception as e:
-            logger.error(f"Database initialization failed: {e}")
-            # Continue without database
-    else:
-        logger.info("Running with in-memory storage (database not available)")
-    
+    # Simple frontend check
     try:
-        # Check for frontend files - try multiple possible paths
-        possible_paths = [
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "frontend", "dist"),
-            os.path.join(os.getcwd(), "frontend", "dist"),
-            "/app/frontend/dist"
-        ]
-        
-        for path in possible_paths:
-            if os.path.exists(path):
-                frontend_dist_path = path
-                frontend_available = True
-                logger.info(f"Found frontend at: {path}")
-                break
-        
-        if frontend_available:
-            # Debug: List files in dist directory
-            logger.info(f"Files in frontend dist directory:")
-            try:
-                for root, dirs, files in os.walk(frontend_dist_path):
-                    for file in files:
-                        logger.info(f"  {os.path.join(root, file)}")
-            except Exception as e:
-                logger.error(f"Error listing files: {e}")
-            
-            # Check if assets directory exists
-            assets_path = os.path.join(frontend_dist_path, "assets")
-            if os.path.exists(assets_path):
-                logger.info(f"Assets directory found at: {assets_path}")
-                # List files in assets directory
-                try:
-                    for file in os.listdir(assets_path):
-                        logger.info(f"  Asset file: {file}")
-                except Exception as e:
-                    logger.error(f"Error listing assets: {e}")
-                
-                # Note: We're handling static files explicitly with correct MIME types
-                logger.info("Frontend assets will be served with explicit MIME types")
-            else:
-                logger.error(f"Assets directory not found at: {assets_path}")
+        frontend_path = "/app/frontend/dist"
+        if os.path.exists(frontend_path):
+            frontend_dist_path = frontend_path
+            frontend_available = True
+            logger.info(f"Found frontend at: {frontend_path}")
         else:
-            logger.warning("Frontend dist not found in any expected location")
             logger.info("Running in API-only mode")
-        
-        # Authentication endpoints are now directly in main.py - no need to load external routes
-        logger.info("Authentication endpoints loaded directly in main.py")
-        
     except Exception as e:
-        logger.error("Failed to initialize application", error=str(e))
-        # Don't raise the error to allow the app to start
+        logger.error(f"Frontend check failed: {e}")
+        # Continue without frontend
+    
+    logger.info("Application startup complete")
 
 # Add middleware to log all requests
 @app.middleware("http")
