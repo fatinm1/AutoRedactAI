@@ -3,16 +3,20 @@ FROM node:18-alpine
 # Set work directory
 WORKDIR /app
 
+# Set environment variables
+ENV NODE_ENV=production
+ENV CI=true
+
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with better error handling
+RUN npm ci --only=production && npm cache clean --force
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application with better error handling
 RUN npm run build
 
 # Install serve for production

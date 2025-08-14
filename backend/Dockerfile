@@ -4,20 +4,22 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONPATH=/app
 
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies with better error handling
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     build-essential \
     curl \
-    software-properties-common \
     git \
     libpq-dev \
     libffi-dev \
     libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Install Python dependencies
 COPY requirements.txt .

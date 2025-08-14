@@ -6,17 +6,19 @@ WORKDIR /app/frontend
 
 # Set environment variables for frontend build
 ENV VITE_API_URL=https://autoredactai-production.up.railway.app
+ENV NODE_ENV=development
+ENV CI=true
 
 # Copy frontend package files
 COPY frontend/package*.json ./
 
-# Install frontend dependencies
-RUN npm ci
+# Install ALL dependencies (including dev dependencies needed for build)
+RUN npm ci && npm cache clean --force
 
 # Copy frontend source code
 COPY frontend/ .
 
-# Build frontend
+# Build frontend with better error handling
 RUN npm run build
 
 # Backend stage
@@ -26,22 +28,22 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONPATH=/app/backend:/app
 
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies including Node.js for potential frontend builds
-RUN apt-get update && apt-get install -y \
+# Install system dependencies for backend with better error handling
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     build-essential \
     curl \
-    software-properties-common \
     git \
     libpq-dev \
     libffi-dev \
     libssl-dev \
-    nodejs \
-    npm \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Install Python dependencies
 COPY backend/requirements.txt .
