@@ -17,7 +17,8 @@ async def get_analytics_overview(
         "total_documents": 25,
         "total_redactions": 150,
         "avg_processing_time": "2.3s",
-        "accuracy_rate": "98.5%",
+        "accuracy_rate": "Not evaluated",
+        "data_source": "synthetic_demo",
         "monthly_trend": [
             {"month": "Jan", "documents": 5},
             {"month": "Feb", "documents": 8},
@@ -34,7 +35,8 @@ async def get_document_analytics(
         "documents_processed": 25,
         "documents_pending": 3,
         "documents_failed": 1,
-        "processing_success_rate": "96.2%"
+        "processing_success_rate": "Not evaluated",
+        "data_source": "synthetic_demo"
     }
 
 @router.get("/redactions")
@@ -52,5 +54,6 @@ async def get_redaction_analytics(
             "SSN": 15,
             "CREDIT_CARD": 15
         },
-        "avg_confidence_score": "94.2%"
+        "avg_confidence_score": "Not calibrated",
+        "data_source": "synthetic_demo"
     } 
