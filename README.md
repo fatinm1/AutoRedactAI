@@ -1,12 +1,14 @@
-# AutoRedactAI – Advanced AI-Powered Document Privacy Assistant
+> **Prototype status:** Dashboard analytics include sample values, not measured production usage or accuracy. OCR support is disabled in the inspected advanced service. Optional model integrations and instantiated estimators do not establish trained ensemble performance. Do not use this demo for sensitive documents or rely on it for compliance certification.
 
-A cutting-edge document redaction platform that leverages **Llama 2.7B** and **multiple machine learning algorithms** to automatically detect and redact sensitive information with **95%+ accuracy**.
+# AutoRedactAI — Document Redaction Prototype
+
+An experimental document-redaction application combining pattern matching and optional local AI/NLP components. Detection quality has not been established on a published evaluation dataset.
 
 ## 🚀 Features
 
 ### Core Functionality
 - **Document Upload**: Support for PDF, DOCX, TXT, JPG, PNG, TIFF with drag-and-drop interface
-- **Advanced AI-Powered Redaction**: Uses Llama 2.7B + ML ensemble to detect:
+- **Advanced AI-Powered Redaction**: Uses Llama 2 7B + ML ensemble to detect:
   - **Personal Information**: Names, SSNs, emails, phone numbers, addresses
   - **Financial Data**: Credit cards, bank accounts, payment information
   - **Technical Secrets**: API keys, passwords, tokens, IP addresses
@@ -14,10 +16,10 @@ A cutting-edge document redaction platform that leverages **Llama 2.7B** and **m
 - **Interactive Preview**: Review and edit redactions before export
 - **Multiple Export Formats**: PDF, TXT with optional audit logs (CSV)
 - **Batch Processing**: Handle multiple files simultaneously
-- **Audit Trail**: Complete logging for compliance (GDPR, HIPAA, SOX)
+- **Audit Trail**: Experimental audit logging; no compliance certification implied
 
 ### Advanced AI Features
-- **🦙 Llama 2.7B Integration**: Open-source LLM for natural language understanding
+- **🦙 Llama 2 7B Integration**: Open-source LLM for natural language understanding
 - **🤖 ML Ensemble**: 6+ algorithms (XGBoost, LightGBM, CatBoost, Random Forest, SVM, Naive Bayes)
 - **📊 NLP Pipeline**: spaCy, Sentence Transformers, TF-IDF, TextBlob
 - **👁️ Computer Vision**: EasyOCR, Tesseract, OpenCV for image processing
@@ -46,7 +48,7 @@ A cutting-edge document redaction platform that leverages **Llama 2.7B** and **m
 ### Backend
 - **Framework**: FastAPI + Python 3.11+
 - **AI/ML Stack**: 
-  - **Llama 2.7B** (llama-cpp-python)
+  - **Llama 2 7B** (llama-cpp-python)
   - **ML Ensemble**: XGBoost, LightGBM, CatBoost, Random Forest, SVM, Naive Bayes
   - **NLP**: spaCy, Sentence Transformers, TF-IDF, TextBlob
   - **Computer Vision**: EasyOCR, Tesseract, OpenCV
@@ -159,7 +161,7 @@ AutoRedactAI/
 ## 🤖 AI Configuration
 
 ### Llama Model Setup
-The system automatically downloads and configures Llama 2.7B:
+The system automatically downloads and configures Llama 2 7B:
 ```bash
 cd backend
 python setup_llama.py
